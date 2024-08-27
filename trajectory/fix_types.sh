@@ -1,2 +1,6 @@
-pybind11-stubgen tudatpy --ignore-all-errors
-cp -r tudatpy/ ~/miniconda3/envs/tudat-space/lib/python3.9/site-packages/tudatpy
+pybind11-stubgen tudatpy
+pybind11-stubgen pygmo
+pybind11-stubgen pygmo_plugins_nonfree
+cp -RT stubs/tudatpy/ ~/miniconda3/envs/tudat-space/lib/python3.9/site-packages/tudatpy/
+cp -RT stubs/pygmo/ ~/miniconda3/envs/tudat-space/lib/python3.9/site-packages/pygmo/
+cp -RT stubs/pygmo_plugins_nonfree/ ~/miniconda3/envs/tudat-space/lib/python3.9/site-packages/pygmo_plugins_nonfree/

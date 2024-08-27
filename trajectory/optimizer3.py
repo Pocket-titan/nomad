@@ -74,9 +74,7 @@ class Problem:
                 continue
 
             if kind not in bound_map[sort]:
-                raise Exception(
-                    f"Add this {sort} kind to the bound_map: {kind}, {npar =}"
-                )
+                raise Exception(f"Add this {sort} kind to the bound_map: {kind}, {npar =}")
 
             _bounds[j : j + npar] = bound_map[sort][kind]
             j += npar
@@ -176,9 +174,7 @@ class Problem:
                         kind = nodes
 
                     kind[int(idx)] = (sort, _type, int(npar))
-                    arr[int(idx)].extend(
-                        [0.5 for _ in range(int(npar) - len(arr[int(idx)]))]
-                    )
+                    arr[int(idx)].extend([0.5 for _ in range(int(npar) - len(arr[int(idx)]))])
 
                     return try_evaluate(*parameters)
                 else:
@@ -219,30 +215,28 @@ transfer_leg_settings, transfer_node_settings = (
     )
 )
 
-transfer_node_settings = [
-    departure_node(departure_semi_major_axis, departure_eccentricity),
-    swingby_node(3689000.0),
-    swingby_node(600000000.0),
-    capture_node(arrival_semi_major_axis, arrival_eccentricity),
-]
+# transfer_node_settings = [
+#     departure_node(departure_semi_major_axis, departure_eccentricity),
+#     swingby_node(3689000.0),
+#     swingby_node(600000000.0),
+#     capture_node(arrival_semi_major_axis, arrival_eccentricity),
+# ]
 
-transfer_leg_settings = [
-    # unpowered_leg(),
-    # unpowered_leg(),
-    # unpowered_leg(),
-    dsm_velocity_based_leg(),
-    dsm_velocity_based_leg(),
-    # unpowered_leg(),
-    # unpowered_leg(),
-    dsm_velocity_based_leg(),
-]
+# transfer_leg_settings = [
+#     # unpowered_leg(),
+#     # unpowered_leg(),
+#     # unpowered_leg(),
+#     dsm_velocity_based_leg(),
+#     dsm_velocity_based_leg(),
+#     # unpowered_leg(),
+#     # unpowered_leg(),
+#     dsm_velocity_based_leg(),
+# ]
 
 # velocity -> unpowered is ok
 # unpowered -> velocity is not ok
 
-transfer_trajectory.print_parameter_definitions(
-    transfer_leg_settings, transfer_node_settings
-)
+transfer_trajectory.print_parameter_definitions(transfer_leg_settings, transfer_node_settings)
 
 bodies = environment_setup.create_simplified_system_of_bodies()
 
@@ -295,10 +289,10 @@ p = Problem(
 prob = pg.problem(p)
 
 seed = 4444
-pop_size = 20
-neighbours = 5
-num_generations = 10
-num_evolutions = 5
+pop_size = 40
+neighbours = 20
+num_generations = 20
+num_evolutions = 600
 
 algo = pg.algorithm(
     pg.moead(
@@ -326,7 +320,6 @@ generations = [[i] * pop_size for i in range(num_generations + 1)]
 fs = np.concatenate(results["f"])
 xs = np.concatenate(results["x"])
 
-# %%
 df = pl.DataFrame(
     {
         "dv": fs[:, 0],
@@ -337,32 +330,19 @@ df = pl.DataFrame(
 ).filter((pl.col("dv") != p.death_value) & (pl.col("tof") != p.death_value))
 
 champions = (
-    (
-        df.group_by("gen")
-        .agg(pl.all().sort_by("dv").head(5))
-        .explode(pl.all().exclude("gen"))
-    )
+    (df.group_by("gen").agg(pl.all().sort_by("dv").head(5)).explode(pl.all().exclude("gen")))
     .sort("dv")
     .filter(pl.col("gen") > 3)
 )
 
 plt.scatter(champions["tof"], champions["dv"], c=champions["gen"], cmap="viridis_r")
 
-# %%
-from contextlib import redirect_stdout
-import io
-
-f = io.StringIO()
-
-with redirect_stdout(f):
-    transfer_trajectory.print_parameter_definitions(
-        transfer_leg_settings, transfer_node_settings
-    )
-
-
-s = f.getvalue()
 
 # %%
+def print_transfer_parameter_definition(leg_settings, node_settings):
+    pass
 
 
+# %%
+transfer_leg_settings[0].leg_type
 # %%

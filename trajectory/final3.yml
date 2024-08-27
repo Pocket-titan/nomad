@@ -73,8 +73,8 @@ dependencies:
   - libedit=3.1.20191231
   - libev=4.33
   - libffi=3.4.2
-  - libgfortran=5.0.0
-  - libgfortran5=13.2.0
+  - libgfortran
+  - libgfortran5
   - libhwloc=2.11.1
   - libiconv=1.17
   - libjpeg-turbo=3.0.0
@@ -89,8 +89,8 @@ dependencies:
   - libwebp-base=1.4.0
   - libxcb=1.15
   - libxml2=2.12.7
-  - libzlib=1.2.13
-  - llvm-openmp=18.1.8
+  - libzlib
+  - llvm-openmp
   - matplotlib=3.9.1
   - matplotlib-base=3.9.1
   - matplotlib-inline=0.1.7
@@ -143,7 +143,7 @@ dependencies:
   - readline=8.2
   - requests=2.32.3
   - scipy=1.13.1
-  - scotch=6.0.9
+  - scotch
   - setuptools=72.1.0
   - six=1.16.0
   - sofa-cmake=1.0.0
@@ -172,7 +172,7 @@ dependencies:
   - yaml=0.2.5
   - zeromq=4.3.5
   - zipp=3.20.0
-  - zlib=1.2.13
+  - zlib
   - zstandard=0.23.0
   - zstd=1.5.6
   - pip:

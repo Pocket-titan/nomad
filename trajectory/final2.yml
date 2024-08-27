@@ -197,4 +197,4 @@ dependencies:
       - uc-micro-py==1.0.3
       - wat-inspector==0.4.0
       - xyzservices==2024.6.0
-prefix: /Users/jelmar/miniconda3/envs/tudat-space
+prefix: /home/jelmar/miniconda3/envs/tudat-space
