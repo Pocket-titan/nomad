@@ -26,13 +26,13 @@ from tudatpy.astro.time_conversion import DateTime
 from tudatpy.math.root_finders import secant
 from tudatpy import constants
 
-from trajectory.utils import flatten, dictify, get_parameter_definitions, once
+from trajectory.lib.utils import flatten, dictify, once, is_notebook
 
 np.set_printoptions(precision=2, suppress=True)
-sns.set_theme(style="ticks", palette="Set2")
-pal = sns.color_palette("Set2")
+sns.set_theme(style="ticks", palette="deep")
+pal = sns.color_palette("deep")
 
-# %%
+
 bound_map = {
     "time": [DateTime(2020, 1, 1).epoch(), DateTime(2050, 1, 1).epoch()],
     "tof_fraction": [0, 1],
@@ -213,7 +213,7 @@ class Problem:
         )
 
     def _set_parameters(self):
-        from trajectory.utils import get_parameter_definitions
+        from trajectory.lib.problem import get_parameter_definitions
 
         obj, leg_settings, node_settings, _ = self.create_obj()
         self.number_of_nodes = obj.number_of_nodes
@@ -487,9 +487,11 @@ def evolve(
     width = len(str(num_evolutions))
     t0 = time.perf_counter()
 
+    mp.freeze_support()
+
     for i in range(1, num_evolutions + 1):
         archi.evolve()
-        archi.wait()
+        archi.wait_check()
 
         best = np.inf
 
@@ -536,62 +538,64 @@ def evolve(
     return df, errs
 
 
-df, errs = evolve(
-    p,
-    num_evolutions=400,
-    num_generations=40,
-    pop_size=40,
-    seed=4444,
-)
-
-
-# %%
-champions = (
-    (
-        df.filter(pl.col("gen") > 3)
-        .group_by("gen")
-        .agg(pl.all().sort_by("dv").head(5))
-        .explode(pl.all().exclude("gen"))
+if __name__ == "__main__":
+    mp.freeze_support()
+    df, errs = evolve(
+        p,
+        num_evolutions=400,
+        num_generations=40,
+        pop_size=40,
+        seed=4444,
     )
-    .sort("dv")
-    .filter(pl.col("dv") < 20_000)
-)
-
-plt.scatter(champions["tof"], champions["dv"], c=champions["gen"], cmap="viridis_r")
-plt.xlabel("Time of flight [yr]")
-plt.ylabel(r"$\Delta$V [m/s]")
-
-# %%
-champions = (df.group_by("gen").agg(pl.all().sort_by("dv").first())).sort("gen")
-plt.plot(champions["gen"], champions["dv"])
-plt.xlabel("Generation")
-plt.ylabel(r"$\Delta$V [m/s]")
-plt.title("Best individual per generation")
-
-# %%
-selection = df.filter(pl.col("dv") <= 10_000)
-xs = np.array(selection.select(pl.col("x")).to_series().to_list())
-
-J2000 = Time("J2000", format="jyear_str")
-
-departures = J2000 + TimeDelta(xs[:, 0], format="sec")
-arrivals = J2000 + TimeDelta(np.sum(xs[:, : p.obj().number_of_legs + 1], axis=-1), format="sec")
-
-dvs = selection["dv"]
-
-plt.scatter(
-    departures.to_value("datetime64"),
-    arrivals.to_value("datetime64"),
-    cmap="viridis_r",
-    c=dvs,
-)
-plt.colorbar(label=r"$\Delta$V [m/s]")
-plt.xticks(rotation=-45)
-plt.xlabel("Departure date")
-plt.ylabel("Arrival date")
 
 
 # %%
-plt.plot(errs[0] + np.diff(errs))
+# champions = (
+#     (
+#         df.filter(pl.col("gen") > 3)
+#         .group_by("gen")
+#         .agg(pl.all().sort_by("dv").head(5))
+#         .explode(pl.all().exclude("gen"))
+#     )
+#     .sort("dv")
+#     .filter(pl.col("dv") < 20_000)
+# )
+
+# plt.scatter(champions["tof"], champions["dv"], c=champions["gen"], cmap="viridis_r")
+# plt.xlabel("Time of flight [yr]")
+# plt.ylabel(r"$\Delta$V [m/s]")
+
+# # %%
+# champions = (df.group_by("gen").agg(pl.all().sort_by("dv").first())).sort("gen")
+# plt.plot(champions["gen"], champions["dv"])
+# plt.xlabel("Generation")
+# plt.ylabel(r"$\Delta$V [m/s]")
+# plt.title("Best individual per generation")
+
+# # %%
+# selection = df.filter(pl.col("dv") <= 10_000)
+# xs = np.array(selection.select(pl.col("x")).to_series().to_list())
+
+# J2000 = Time("J2000", format="jyear_str")
+
+# departures = J2000 + TimeDelta(xs[:, 0], format="sec")
+# arrivals = J2000 + TimeDelta(np.sum(xs[:, : p.obj().number_of_legs + 1], axis=-1), format="sec")
+
+# dvs = selection["dv"]
+
+# plt.scatter(
+#     departures.to_value("datetime64"),
+#     arrivals.to_value("datetime64"),
+#     cmap="viridis_r",
+#     c=dvs,
+# )
+# plt.colorbar(label=r"$\Delta$V [m/s]")
+# plt.xticks(rotation=-45)
+# plt.xlabel("Departure date")
+# plt.ylabel("Arrival date")
+
+
+# # %%
+# plt.plot(errs[0] + np.diff(errs))
 
 # %%

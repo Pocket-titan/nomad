@@ -1,0 +1,9 @@
+{
+  "python.analysis.stubPath": "${workspaceFolder}/stubs",
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "python.autoComplete.extraPaths": ["${workspaceFolder}"],
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
+  "files.exclude": {
+    "**/stubs": true
+  }
+}

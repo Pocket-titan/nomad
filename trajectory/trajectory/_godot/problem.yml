@@ -1,0 +1,33 @@
+parameters:
+  free:
+    - Departure_SC_center_vdr
+
+    - man1_start_dt
+    - man1_end_dt
+    - man1_ras
+    - man1_dec
+
+    - match_inter_left_dt
+    - match_inter_right_dt
+
+    - man2_start_dt
+    - man2_end_dt
+    - man2_ras
+    - man2_dec
+
+    - Arrival_SC_center_var
+    - Arrival_SC_center_vad
+    - Arrival_SC_mass
+    - Arrival_SC_dv
+
+  bounds:
+    match_inter_left_dt: [1e-9 day, 1000 day]
+    match_inter_right_dt: [1e-9 day, 1000 day]
+    man1_start_dt: [30 day, 300 day]
+    man2_start_dt: [30 day, 300 day]
+
+objective:
+  type: minimise
+  value: SC_dv
+  point: Arrival
+  scale: 1.0

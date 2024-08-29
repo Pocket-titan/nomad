@@ -24,7 +24,7 @@ arrival_semi_major_axis = 3.8913e9
 arrival_eccentricity = 0.999486
 
 
-class Transfer:
+class PickleJar:
     def __init__(self, fn, args=[], kwargs={}):
         self.obj = fn(*args, **kwargs)
         self.kwargs = kwargs
@@ -70,16 +70,20 @@ def fn(central_body, body_order, *args, departure_orbit, arrival_orbit, **kwargs
         arrival_orbit=arrival_orbit,
     )
 
-    return create_transfer_trajectory(
-        bodies,
+    return (
+        create_transfer_trajectory(
+            bodies,
+            leg_settings,
+            node_settings,
+            body_order,
+            central_body,
+        ),
         leg_settings,
         node_settings,
-        body_order,
-        central_body,
     )
 
 
-t = Transfer(
+t = PickleJar(
     fn,
     args=[central_body, body_order],
     kwargs={

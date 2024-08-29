@@ -1,0 +1,81 @@
+version: '3.0'
+
+spacetime:
+  system: BCRS
+
+ephemeris:
+  - name: de432
+    files:
+      - /home/jelmar/miniconda3/envs/tudat-space/lib/python3.9/site-packages/godot/share/test/de432.jpl
+  - name: gm431
+    files:
+      - /home/jelmar/miniconda3/envs/tudat-space/lib/python3.9/site-packages/godot/share/test/gm_de431.tpc
+
+frames:
+  - name: ephem1
+    type: Ephem
+    config:
+      source: de432
+
+  - name: EMC
+    type: AxesOrient
+    config:
+      model: EMCJ2000
+
+  - name: Mars
+    type: PointAlias
+    config:
+      target: MarsBarycenter
+
+  - name: Mars
+    type: AxesOrient
+    config:
+      model: MarsIAU2009
+
+  - name: EarthLocal
+    type: AxesLocalOrbital
+    config:
+      center: Sun
+      target: Earth
+      axes: Pos
+
+  - name: MarsLocal
+    type: AxesLocalOrbital
+    config:
+      center: Sun
+      target: Mars
+      axes: Pos
+
+constants:
+  ephemeris:
+    - source: gm431
+
+bodies:
+  - name: Sun
+    point: Sun
+  - name: Earth
+    point: Earth
+  - name: Mars
+    point: Mars
+
+gravity:
+  - name: SunEarthMarsGravity
+    bodies:
+      - Sun
+      - Earth
+      - Mars
+
+dynamics:
+  - name: SunEarthMarsDynamics
+    type: SystemGravity
+    config:
+      model: SunEarthMarsGravity
+      switch: true
+
+spacecraft:
+  - name: SC
+    mass: 3000 kg
+    thrusters:
+      - name: sep
+        thrust: 500 mN
+        isp: 3500 s

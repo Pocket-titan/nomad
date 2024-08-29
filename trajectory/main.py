@@ -1,99 +1,117 @@
 # %%
-import matplotlib.pyplot as plt
-import seaborn as sns
+from typing import Callable, Any
+from multiprocessing import freeze_support
+from pathlib import Path
 import numpy as np
-from tudatpy.trajectory_design import transfer_trajectory
-from tudatpy.numerical_simulation import environment_setup
+import logging
+import time
+
+import pygmo as pg
+import pygmo_plugins_nonfree as ppnf
 from tudatpy.astro.time_conversion import DateTime
-from tudatpy.util import result2array
+from trajectory.lib.run import perform_run
 
-sns.set_theme(
-    style="ticks",
-    palette="Set2",
-)
 
-# %%
-central_body = "Sun"
+logger = logging.getLogger(__name__)
 
-transfer_body_order = ["Earth", "Mars", "Jupiter", "Neptune"]
 
-departure_semi_major_axis = np.inf
-departure_eccentricity = 0.0
+body_order = ["Earth", "Mars", "Jupiter", "Neptune"]
 
-arrival_semi_major_axis = 1.0895e8 / 0.02
-arrival_eccentricity = 0.98
 
-# %%
-transfer_leg_settings, transfer_node_settings = (
-    transfer_trajectory.mga_settings_unpowered_unperturbed_legs(
-        transfer_body_order,
+def create_obj(*pars):
+    from tudatpy.numerical_simulation.environment_setup import create_simplified_system_of_bodies
+    from tudatpy.trajectory_design.transfer_trajectory import (
+        create_transfer_trajectory,
+        mga_settings_unpowered_unperturbed_legs,
+    )
+
+    central_body = "Sun"
+
+    departure_semi_major_axis = np.inf
+    departure_eccentricity = 0.0
+
+    arrival_semi_major_axis = 3.8913e9
+    arrival_eccentricity = 0.999486
+
+    bodies = create_simplified_system_of_bodies()
+
+    leg_settings, node_settings = mga_settings_unpowered_unperturbed_legs(
+        body_order,
         departure_orbit=(departure_semi_major_axis, departure_eccentricity),
         arrival_orbit=(arrival_semi_major_axis, arrival_eccentricity),
     )
-)
 
-# %%
-bodies = environment_setup.create_simplified_system_of_bodies()
+    obj = create_transfer_trajectory(
+        bodies,
+        leg_settings,
+        node_settings,
+        body_order,
+        central_body,
+    )
 
-# %%
-transfer_trajectory_object = transfer_trajectory.create_transfer_trajectory(
-    bodies,
-    transfer_leg_settings,
-    transfer_node_settings,
-    transfer_body_order,
-    central_body,
-)
+    return obj, leg_settings, node_settings
 
-# %%
+
 node_times = [
     DateTime(2031, 2, 9).epoch(),
     DateTime(2031, 5, 15).epoch(),
     DateTime(2033, 1, 3).epoch(),
     DateTime(2047, 2, 13).epoch(),
 ]
-leg_free_parameters = [list() for _ in node_times]
-node_free_parameters = [list() for _ in node_times]
 
-transfer_trajectory_object.evaluate(
-    node_times, leg_free_parameters, node_free_parameters
+p_kwargs = dict(
+    bounds=dict(
+        departure=[DateTime(2028, 4, 6).epoch(), DateTime(2033, 12, 31).epoch()],
+        leg_tof=np.diff(node_times)[:, None] * [[0.2, 3], [0.2, 3], [0.5, 1.25]],
+        node_parameters={},
+        leg_parameters={},
+    ),
+    fixed=dict(
+        departure=[],
+        leg_tof=[],
+        node_parameters={},
+        leg_parameters={},
+    ),
+    dim=1,
 )
 
-# %%
-print(f"dv: {transfer_trajectory_object.delta_v:.2f}")
+evolve_kwargs = dict(
+    num_evolutions=50,
+    num_generations=25,
+    pop_size=10,
+    seed=4444,
+)
+evolve_kwargs["algo"] = pg.mbh(ppnf.snopt7(), stop=5, perturb=0.01, seed=evolve_kwargs["seed"])
 
-state_history = transfer_trajectory_object.states_along_trajectory(500)
-fly_by_states = np.array([state_history[node_times[i]] for i in range(len(node_times))])
-state_history = result2array(state_history)
-au = 1.5e11
+suffix = "_test"
 
-# %%
-fig = plt.figure(figsize=(8, 5))
-ax = fig.add_subplot(111)
-ax.plot(state_history[:, 1] / au, state_history[:, 2] / au, zorder=0)
-ax.scatter(
-    fly_by_states[0, 0] / au,
-    fly_by_states[0, 1] / au,
-    label="Earth departure",
-)
-ax.scatter(
-    fly_by_states[1, 0] / au,
-    fly_by_states[1, 1] / au,
-    label="Mars fly-by",
-)
-ax.scatter(
-    fly_by_states[2, 0] / au,
-    fly_by_states[2, 1] / au,
-    label="Jupiter swing-by",
-)
-ax.scatter(
-    fly_by_states[3, 0] / au,
-    fly_by_states[3, 1] / au,
-    label="Neptune arrival",
-)
-ax.scatter([0], [0], color="orange", label="Sun")
-ax.set_xlabel("x wrt Sun [AU]")
-ax.set_ylabel("y wrt Sun [AU]")
-ax.set_aspect("equal")
-ax.legend(bbox_to_anchor=[1, 1])
+
+def main():
+    FOLDER = Path(__file__).parent / "runs"
+
+    logging.basicConfig(
+        filename=(FOLDER / "main.log").absolute(),
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(funcName)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger.info("Starting main")
+
+    freeze_support()
+
+    # args
+
+    perform_run(
+        body_order=body_order,
+        create_obj=create_obj,
+        p_kwargs=p_kwargs,
+        evolve_kwargs=evolve_kwargs,
+        suffix=suffix,
+    )
+
+
+if __name__ == "__main__":
+    main()
 
 # %%
