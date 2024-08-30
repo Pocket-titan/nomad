@@ -81,7 +81,7 @@ from tudatpy.numerical_simulation import environment_setup
 # %%
 central_body = "Sun"
 
-transfer_body_order = ["Earth", "Venus", "Earth"]
+transfer_body_order = ["Earth", "Venus", "Earth", "Mars", "Jupiter"]
 
 bodies = environment_setup.create_simplified_system_of_bodies()
 
@@ -96,10 +96,14 @@ arrival_eccentricity = 0.98
 transfer_node_settings = [
     transfer_trajectory.departure_node(departure_semi_major_axis, departure_eccentricity),
     transfer_trajectory.swingby_node(600_000),
+    transfer_trajectory.swingby_node(600_000),
+    transfer_trajectory.swingby_node(600_000),
     transfer_trajectory.capture_node(arrival_semi_major_axis, arrival_eccentricity),
 ]
 
 transfer_leg_settings = [
+    transfer_trajectory.unpowered_leg(),
+    transfer_trajectory.dsm_velocity_based_leg(),
     transfer_trajectory.unpowered_leg(),
     transfer_trajectory.dsm_velocity_based_leg(),
 ]
@@ -115,9 +119,9 @@ transfer_trajectory_object = transfer_trajectory.create_transfer_trajectory(
 transfer_trajectory.print_parameter_definitions(transfer_leg_settings, transfer_node_settings)
 
 transfer_trajectory_object.evaluate(
-    [0, 1e8, 9e8],
-    [[], [0.5]],
-    [[], [700_000, 0, 10], []],
+    [0, 1e8, 9e8, 3e9, 4e9],
+    [[], [0.5], [], [0.5]],
+    [[], [700_000, 0, 10], [], [2e6, 0, 1000], []],
 )
 
 (
@@ -125,3 +129,5 @@ transfer_trajectory_object.evaluate(
     transfer_trajectory_object.delta_v_per_node,
     transfer_trajectory_object.delta_v,
 )
+
+# %%

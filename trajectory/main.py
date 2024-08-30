@@ -1,25 +1,30 @@
 # %%
-from typing import Callable, Any
+from tudatpy.astro.time_conversion import DateTime
 from multiprocessing import freeze_support
 from pathlib import Path
+
+from multiprocessing import Queue, Process
+from logging.handlers import QueueHandler, QueueListener
+
+import pygmo_plugins_nonfree as ppnf
+import cloudpickle as pkl
+import pygmo as pg
 import numpy as np
 import logging
-import time
 
-import pygmo as pg
-import pygmo_plugins_nonfree as ppnf
-from tudatpy.astro.time_conversion import DateTime
 from trajectory.lib.run import perform_run
 
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 body_order = ["Earth", "Mars", "Jupiter", "Neptune"]
 
 
 def create_obj(*pars):
-    from tudatpy.numerical_simulation.environment_setup import create_simplified_system_of_bodies
+    from tudatpy.numerical_simulation.environment_setup import (
+        create_simplified_system_of_bodies,
+    )
     from tudatpy.trajectory_design.transfer_trajectory import (
         create_transfer_trajectory,
         mga_settings_unpowered_unperturbed_legs,
@@ -81,37 +86,139 @@ evolve_kwargs = dict(
     pop_size=10,
     seed=4444,
 )
-evolve_kwargs["algo"] = pg.mbh(ppnf.snopt7(), stop=5, perturb=0.01, seed=evolve_kwargs["seed"])
+evolve_kwargs["algo"] = lambda: pg.mbh(
+    ppnf.snopt7(), stop=5, perturb=0.01, seed=evolve_kwargs["seed"]
+)
 
 suffix = "_test"
+
+
+# Define a queue
+
+
+# Define a log listener in the main process
+def log_listener(queue):
+    handler = logging.StreamHandler()
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(logging.DEBUG)
+
+    listener = QueueListener(queue, handler)
+    listener.start()
+    try:
+        listener.join()
+    except KeyboardInterrupt:
+        pass
+    listener.stop()
+
+
+def listener_process(queue, configurer):
+    pass
+
+
+def listener_configurer():
+    pass
 
 
 def main():
     FOLDER = Path(__file__).parent / "runs"
 
-    logging.basicConfig(
-        filename=(FOLDER / "main.log").absolute(),
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(funcName)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    logfile = (FOLDER / "main.log").absolute()
+    # if not logfile.exists():
+    #     logfile.touch()
 
-    logger.info("Starting main")
+    # logger = logging.getLogger()
+
+    # for handler in logger.handlers[:]:
+    #     logger.removeHandler(handler)
+    #     handler.close()
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+        handler.close()
+
+    log_queue = Queue(-1)
+    queue_handler = QueueHandler(log_queue)
+    handler = logging.FileHandler(logfile)
+    listener = QueueListener(log_queue, handler)
+    logger.addHandler(queue_handler)
+
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s - %(name)s - %(threadName)s - %(levelname)s - %(funcName)s - %(message)s"
+        )
+    )
+    listener.start()
+
+    # logging.FileHandler((FOLDER / "main.log").absolute())
+
+    # logfile = (FOLDER / "main.log").absolute()
+    # if not logfile.exists():
+    #     logfile.touch()
+    # logging.basicConfig(
+    #     filename=logfile,
+    #     level=logging.DEBUG,
+    #     format="%(asctime)s - %(name)s - %(threadName)s - %(levelname)s - %(funcName)s - %(message)s",
+    #     datefmt="%Y-%m-%d %H:%M:%S",
+    #     force=True,
+    # )
 
     freeze_support()
 
-    # args
+    try:
+        with open((FOLDER / "wishlist.pkl").absolute(), "rb") as f:
+            wishlist: list[dict] = pkl.load(f)
+    except Exception as e:
+        logger.error("Failed to load wishlist", exc_info=e)
+        return
 
-    perform_run(
-        body_order=body_order,
-        create_obj=create_obj,
-        p_kwargs=p_kwargs,
-        evolve_kwargs=evolve_kwargs,
-        suffix=suffix,
-    )
+    logger.info(f"Loaded wishlist with {len(wishlist)} entries")
+
+    # perform_run(
+    #     body_order=body_order,
+    #     create_obj=create_obj,
+    #     p_kwargs=p_kwargs,
+    #     evolve_kwargs=evolve_kwargs,
+    #     suffix=suffix,
+    # )
+
+    completed = []
+    for i, w in enumerate(wishlist):
+        logger.info(
+            f"Running wishlist entry {i}. {''.join([x[0].upper() for x in w['body_order']])}, {w['create_obj'].__name__}, {', '.join([str(k) + '=' + str(v) for k, v in w['evolve_kwargs'].items()])}"
+        )
+
+        try:
+            perform_run(
+                body_order=w["body_order"],
+                create_obj=w["create_obj"],
+                p_kwargs=w["p_kwargs"],
+                evolve_kwargs=w["evolve_kwargs"],
+                suffix=w["suffix"],
+                log_queue=log_queue,
+            )
+            completed.append(i)
+        except Exception as e:
+            logger.error(f"Failed to run wishlist entry {i}", exc_info=e)
+
+    logger.info("Finished running wishlist")
+
+    wishlist_after = [i for i in range(len(wishlist)) if i not in completed]
+    with open((FOLDER / "wishlist_after.pkl").absolute(), "wb") as f:
+        pkl.dump(wishlist_after, f)
+
+    if len(wishlist_after) == 0:
+        logger.info("All wishlist entries completed successfully")
+    else:
+        logger.warning(
+            f"Failed to complete some wishlist entries: {len(wishlist_after)} out of {len(wishlist)}, or {len(wishlist_after)/len(wishlist)*100:.2f}%"
+        )
+
+    listener.stop()
 
 
 if __name__ == "__main__":
     main()
-
-# %%
