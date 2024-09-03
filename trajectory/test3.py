@@ -3,114 +3,67 @@ import multiprocessing as mp
 import pygmo as pg
 import logging
 import logging.handlers
+import time
 import wat
 
 from logging.handlers import QueueHandler, QueueListener
 from trajectory.lib.test_log_problem import Problem
+from trajectory.lib.island import Island
 
-from threading import Lock as _Lock
+logger = logging.getLogger()
 
 
-class Island(object):
-    _pool_lock = _Lock()
-    _pool_size = None
-    _pool = None
+def initializer(queue):
+    h = logging.handlers.QueueHandler(queue)
+    root = logging.getLogger()
+    root.addHandler(h)
+    # root.setLevel(logging.DEBUG)
 
-    def __init__(self):
-        self._init()
 
-    def _init(self):
-        self.init_pool()
+def fn(queue, initializer, i, sleep_time):
+    initializer(queue)
 
-    @staticmethod
-    def init_pool(processes=None):
+    # def wrapper():
+    # logger = logging.getLogger("problem")
+    logging.info(f"hello from {i}!")
+    time.sleep(sleep_time)
+
+    # return wrapper
+
+
+def mp_stuff(queue):
+    mp_ctx = mp.get_context("fork")
+    pool = mp_ctx.Pool(3)
+
+    job_list = [1, 2, 3, 4, 5, 6]
+
+    # getters = []
+    # for i, sleep_time in enumerate(job_list):
+    #     name = str(i)
+    #     with Island._pool_lock:
+    #         res = pool.apply_async(fn, args=(queue, initializer, name, sleep_time))
+    #     getters.append(res)
+
+    # while len(getters):
+    #     getters.pop().get()
+    # # optionally, close and join pool here (generally a good idea anyway)
+    # queue.put_nowait(None)
+
+    for i, sleep_time in enumerate(job_list):
+        name = str(i)
+
         with Island._pool_lock:
-            Island._init_pool_impl(processes)
+            res = pool.apply_async(fn, args=(queue, initializer, name, sleep_time))
 
-    @staticmethod
-    def _init_pool_impl(processes):
-        from ._mp_utils import _make_pool
-
-        if Island._pool is None:
-            Island._pool, Island._pool_size = _make_pool(processes)
-
-    @staticmethod
-    def get_pool_size():
-        with Island._pool_lock:
-            Island._init_pool_impl(None)
-            return Island._pool_size
-
-    @staticmethod
-    def resize_pool(processes):
-        from ._mp_utils import _make_pool
-
-        if not isinstance(processes, int):
-            raise TypeError("The 'processes' argument must be an int")
-        if processes <= 0:
-            raise ValueError("The 'processes' argument must be strictly positive")
-
-        with Island._pool_lock:
-            Island._init_pool_impl(processes)
-            if processes == Island._pool_size:
-                return
-
-            new_pool, new_size = _make_pool(processes)
-
-            Island._pool.close()
-            Island._pool.join()
-
-            Island._pool = new_pool
-            Island._pool_size = new_size
-
-    @staticmethod
-    def shutdown_pool():
-        with Island._pool_lock:
-            if Island._pool is None:
-                return
-
-            Island._pool.close()
-            Island._pool.join()
-            Island._pool = None
-            Island._pool_size = None
-
-    def get_name(self):
-        return "Multiprocessing island (custom)"
-
-    def get_extra_info(self):
-        retval = "\tUsing a process pool: {}\n".format("yes")
-        retval += "\tNumber of processes in the pool: {}".format(
-            mp_island.get_pool_size()
-        )
-        return retval
-
-    def __copy__(self):
-        return Island()
-
-    def __deepcopy__(self, d):
-        return self.__copy__()
-
-    def __getstate__(self):
-        return
-
-    def __setstate__(self, state):
-        self._init()
-
-    def run_evolve(self, algo, pop):
-        pass
+    pool.close()
+    pool.join()
+    queue.put_nowait(None)
 
 
-class mp_island(pg.mp_island):
-    def __init__(self, use_pool=True):
-        super().__init__(use_pool)
-
-    @staticmethod
-    def init_pool(self):
-        print("no")
-
-
-def main():
-    logger = logging.getLogger()
+def main(queue):
     logger.info("Start")
+
+    # mp_stuff(queue)
 
     p = Problem(2)
     prob = pg.problem(p)
@@ -126,7 +79,7 @@ def main():
         prob=prob,
         pop_size=5,
         seed=seed,
-        udi=mp_island(),
+        udi=Island(initializer=lambda: initializer(queue)),
     )
 
     for i in range(3):
@@ -134,13 +87,13 @@ def main():
         archi.wait_check()
         logger.info(f"Generation {i}")
 
-    logger.info("End")
     print(archi.get_champions_f())
     print(prob.get_fevals())
 
+    logger.info("End")
+
 
 def setup_logger():
-    logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
     for handler in logger.handlers[:]:
@@ -156,11 +109,45 @@ def setup_logger():
     return queue, listener
 
 
+def listener_process(queue, configurer):
+    configurer()
+    while True:
+        try:
+            record = queue.get()
+            if record is None:  # We send this as a sentinel to tell the listener to quit.
+                break
+            logger = logging.getLogger(record.name)
+            logger.handle(record)  # No level or filter logic applied - just do it!
+        except Exception:
+            import sys, traceback
+
+            print("Whoops! Problem:", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
+
+def listener_configurer():
+    root = logging.getLogger()
+    log_file = "test.log"
+    h = logging.FileHandler(log_file)
+    # h = logging.StreamHandler()
+    f = logging.Formatter(
+        "%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s"
+    )
+    h.setFormatter(f)
+    root.addHandler(h)
+
+
 if __name__ == "__main__":
-    queue, listener = setup_logger()
+    # queue, listener = setup_logger()
+    queue = mp.Manager().Queue(-1)
+    listener = mp.Process(target=listener_process, args=(queue, listener_configurer))
     listener.start()
-    main()
-    listener.stop()
-    logging.shutdown()
+
+    main(queue)
+
+    # queue.put_nowait(None)
+    listener.join()
+
+    # logging.shutdown()
 
 # %%
