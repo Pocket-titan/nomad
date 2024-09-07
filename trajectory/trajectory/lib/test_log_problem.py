@@ -4,15 +4,13 @@ import numpy as np
 import logging
 
 
-logger = logging.getLogger("problem")
-
-
 class Problem:
-    def __init__(self, dim):
+    def __init__(self, dim, name: str = None) -> None:
+        self.logger = logging.getLogger(name)
         self.dim = dim
 
     def fitness(self, x):
-        logger.info(f"Fitness {x}")
+        self.logger.info(f"Fitness {x}")
 
         retval = np.zeros((1,))
         for i in range(len(x) - 1):

@@ -19,7 +19,7 @@ class _temp_disable_sigint(object):
         signal.signal(signal.SIGINT, self._prev_signal)
 
 
-def _make_pool(processes, initializer):
+def _make_pool(processes, initializer, initargs):
     if processes is not None and not isinstance(processes, int):
         raise TypeError("The 'processes' argument must be None or an int")
 
@@ -31,11 +31,19 @@ def _make_pool(processes, initializer):
     mp_ctx = _get_spawn_context()
 
     with _temp_disable_sigint():
-        pool = mp_ctx.Pool(processes=processes, initializer=initializer)
+        pool = mp_ctx.Pool(
+            processes=processes,
+            initializer=initializer,
+            initargs=initargs,
+        )
 
     pool_size = mp_ctx.cpu_count() if processes is None else processes
 
     return pool, pool_size
+
+
+def _configurer(queue):
+    pass
 
 
 def _evolve_func_mp_pool(ser_algo_pop):
@@ -60,44 +68,51 @@ def _evolve_func_mp_pool(ser_algo_pop):
 class Island(object):
     _pool_lock = _Lock()
     _pool_size = None
+    _queue = None
     _pool = None
 
-    def __init__(self, initializer=None):
+    def __init__(self, queue=None, initializer=None):
         self.initializer = initializer
+
+        if queue is not None and initializer is not None:
+            self.initargs = (queue,)
+        else:
+            self.initargs = ()
+
         self._init()
 
     def _init(self):
-        self.init_pool(initializer=self.initializer)
+        self.init_pool(initializer=self.initializer, initargs=self.initargs)
 
     @staticmethod
-    def init_pool(processes=None, initializer=None):
+    def init_pool(processes=None, initializer=None, initargs=None):
         with Island._pool_lock:
-            Island._init_pool_impl(processes, initializer)
+            Island._init_pool_impl(processes, initializer, initargs)
 
     @staticmethod
-    def _init_pool_impl(processes, initializer):
+    def _init_pool_impl(processes, initializer=None, initargs=None):
         if Island._pool is None:
-            Island._pool, Island._pool_size = _make_pool(processes, initializer)
+            Island._pool, Island._pool_size = _make_pool(processes, initializer, initargs)
 
     @staticmethod
     def get_pool_size():
         with Island._pool_lock:
-            Island._init_pool_impl(None)
+            Island._init_pool_impl(None, None, None)
             return Island._pool_size
 
     @staticmethod
-    def resize_pool(processes):
+    def resize_pool(processes, initializer=None, initargs=None):
         if not isinstance(processes, int):
             raise TypeError("The 'processes' argument must be an int")
         if processes <= 0:
             raise ValueError("The 'processes' argument must be strictly positive")
 
         with Island._pool_lock:
-            Island._init_pool_impl(processes)
+            Island._init_pool_impl(processes, initializer, initargs)
             if processes == Island._pool_size:
                 return
 
-            new_pool, new_size = _make_pool(processes)
+            new_pool, new_size = _make_pool(processes, initializer, initargs)
 
             Island._pool.close()
             Island._pool.join()

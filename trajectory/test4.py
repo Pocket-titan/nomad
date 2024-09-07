@@ -1,6 +1,4 @@
 # %%
-import os
-import sys
 import time
 import traceback
 import multiprocessing as mp
@@ -19,7 +17,6 @@ class SubProcessLogHandler(logging.Handler):
     """handler used by subprocesses
 
     It simply puts items on a Queue for the main process to log.
-
     """
 
     def __init__(self, queue):
@@ -53,21 +50,20 @@ class LogQueueReader(threading.Thread):
         Note that we're using the name of the original logger.
 
         """
-        # Thanks Mike for the error checking code.
         while True:
             try:
                 record = self.queue.get()
 
                 if record is True:
                     break
-                # get the logger for this record
+
                 logger = logging.getLogger(record.name)
                 logger.callHandlers(record)
             except (KeyboardInterrupt, SystemExit):
                 raise
             except EOFError:
                 break
-            except:
+            except Exception:
                 traceback.print_exc(file=sys.stderr)
 
 
@@ -110,6 +106,7 @@ class LoggingProcess(mp.Process):
 def configurer(queue):
     logger = logging.getLogger("test.subprocess")
 
+    # Added so it works in notebooks (rerunning the cell will duplicate the handlers)
     add = True
     for handler in logger.handlers:
         if isinstance(handler, SubProcessLogHandler):
@@ -152,6 +149,7 @@ if __name__ == "__main__":
         h.close()
 
     handler = logging.StreamHandler()
+    # handler = logging.FileHandler("test.log")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(DEFAULT_LEVEL)
@@ -162,28 +160,13 @@ if __name__ == "__main__":
     log_queue_reader.start()
     # create the processes.
 
-    with mp.get_context().Pool(2) as pool:
+    with mp.get_context().Pool(3) as pool:
         sleep_times = [0.5, 1, 1.5, 2]
-
-        # pool.map(worker, [(queue, configurer, i, sleep_time) for i, sleep_time in enumerate(sleep_times)])
-
-        getters = []
-
-        # for i, sleep_time in enumerate(sleep_times):
-        #     # p = LoggingProcess(queue)
-        #     # p.start()
-        #     getters.append(
-        #         pool.apply_async(worker, args=(queue, configurer, i, sleep_time))
-        #     )
 
         getters = [
             pool.apply_async(worker, args=(queue, configurer, i, sleep_time))
             for i, sleep_time in enumerate(sleep_times)
         ]
-
-        # while len(getters):
-        #     print(len(getters))
-        #     x = getters.pop().wait()
 
         print([res.wait() for res in getters])
         print([res.successful() for res in getters])
@@ -197,8 +180,6 @@ if __name__ == "__main__":
         # while mp.active_children():
         #     time.sleep(0.1)
 
-        pool.close()
-        pool.join()
-        queue.put_nowait(True)
+    queue.put_nowait(True)
 
 # %%
