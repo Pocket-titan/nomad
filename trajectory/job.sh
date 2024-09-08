@@ -10,7 +10,7 @@
 #SBATCH --output=/scratch/jelmargerritse/logs/%j-run.out
 #SBATCH --error=/scratch/jelmargerritse/logs/%j-run.err
 
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ROOT=/scratch/jelmargerritse/nomad/trajectory
 
