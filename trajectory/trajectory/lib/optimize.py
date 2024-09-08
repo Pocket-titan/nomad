@@ -57,7 +57,10 @@ def evolve(
         algo.set_random_sr_seed(seed)
     algo = pg.algorithm(algo)
 
-    num_islands = num_islands or max(1, min(32, mp.cpu_count()))
+    num_islands = int(
+        os.environ.get("SLURM_CPUS_PER_TASK", num_islands)
+        or max(1, min(32, mp.cpu_count()))
+    )
 
     if island is None:
         island = Island()

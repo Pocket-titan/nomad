@@ -1,6 +1,4 @@
 # %%
-import multiprocessing as mp
-
 from tudatpy.astro.time_conversion import DateTime
 from multiprocessing import freeze_support
 from logging.handlers import QueueHandler
@@ -152,10 +150,6 @@ def main():
     #     **kwargs,
     # )
 
-    print(mp.cpu_count())
-    print(mp.get_context())
-    print(type(mp.get_context()))
-
     completed = []
     for i, w in enumerate(wishlist):
         logger.info(
@@ -163,7 +157,6 @@ def main():
         )
 
         try:
-            print("performing run...")
             perform_run(
                 body_order=w["body_order"],
                 create_obj=w["create_obj"],

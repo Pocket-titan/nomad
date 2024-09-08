@@ -42,10 +42,6 @@ def _make_pool(processes, initializer, initargs):
     return pool, pool_size
 
 
-def _configurer(queue):
-    pass
-
-
 def _evolve_func_mp_pool(ser_algo_pop):
     # The evolve function that is actually run from the separate processes
     # in mp_island (when using the pool).
