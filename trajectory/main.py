@@ -1,21 +1,18 @@
 # %%
 from tudatpy.astro.time_conversion import DateTime
 from multiprocessing import freeze_support
+from logging.handlers import QueueHandler
 from pathlib import Path
-
-from multiprocessing import Queue, Process
-from logging.handlers import QueueHandler, QueueListener
 
 import pygmo_plugins_nonfree as ppnf
 import cloudpickle as pkl
 import pygmo as pg
 import numpy as np
 import logging
+import os
 
+from trajectory.lib.logger import setup_logger
 from trajectory.lib.run import perform_run
-
-
-# logger = logging.getLogger(__name__)
 
 
 body_order = ["Earth", "Mars", "Jupiter", "Neptune"]
@@ -87,86 +84,48 @@ evolve_kwargs = dict(
     seed=4444,
 )
 evolve_kwargs["algo"] = lambda: pg.mbh(
-    ppnf.snopt7(), stop=5, perturb=0.01, seed=evolve_kwargs["seed"]
+    pg.nlopt("slsqp"), stop=5, perturb=0.01, seed=evolve_kwargs["seed"]
 )
 
 suffix = "_test"
 
 
-# Define a queue
+# Main
+# For now, use the root logger - if you change this probably have to use an .env file to propagate it to the other modules
+LOG_NAME = "root"
+LOG_LEVEL = logging.DEBUG
+SUBP_LOG_NAME = f"{LOG_NAME}.subp"
 
 
-# Define a log listener in the main process
-def log_listener(queue):
-    handler = logging.StreamHandler()
-    root = logging.getLogger()
-    root.addHandler(handler)
-    root.setLevel(logging.DEBUG)
+def initializer(queue):
+    logger = logging.getLogger(SUBP_LOG_NAME)
 
-    listener = QueueListener(queue, handler)
-    listener.start()
-    try:
-        listener.join()
-    except KeyboardInterrupt:
-        pass
-    listener.stop()
+    add = True
+    for handler in logger.handlers:
+        if isinstance(handler, QueueHandler):
+            add = False
+        else:
+            logger.removeHandler(handler)
 
+    if add:
+        handler = QueueHandler(queue)
+        logger.addHandler(handler)
 
-def listener_process(queue, configurer):
-    pass
-
-
-def listener_configurer():
-    pass
+    logger.setLevel(LOG_LEVEL)
 
 
 def main():
+    freeze_support()
+
+    os.environ["LOG_NAME"] = LOG_NAME
+    os.environ["SUBP_LOG_NAME"] = SUBP_LOG_NAME
+
     FOLDER = Path(__file__).parent / "runs"
+    FOLDER.mkdir(exist_ok=True)
 
     logfile = (FOLDER / "main.log").absolute()
-    # if not logfile.exists():
-    #     logfile.touch()
-
-    # logger = logging.getLogger()
-
-    # for handler in logger.handlers[:]:
-    #     logger.removeHandler(handler)
-    #     handler.close()
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
-        handler.close()
-
-    log_queue = Queue(-1)
-    queue_handler = QueueHandler(log_queue)
-    handler = logging.FileHandler(logfile)
-    listener = QueueListener(log_queue, handler)
-    logger.addHandler(queue_handler)
-
-    handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s - %(name)s - %(threadName)s - %(levelname)s - %(funcName)s - %(message)s"
-        )
-    )
-    listener.start()
-
-    # logging.FileHandler((FOLDER / "main.log").absolute())
-
-    # logfile = (FOLDER / "main.log").absolute()
-    # if not logfile.exists():
-    #     logfile.touch()
-    # logging.basicConfig(
-    #     filename=logfile,
-    #     level=logging.DEBUG,
-    #     format="%(asctime)s - %(name)s - %(threadName)s - %(levelname)s - %(funcName)s - %(message)s",
-    #     datefmt="%Y-%m-%d %H:%M:%S",
-    #     force=True,
-    # )
-
-    freeze_support()
+    reader, queue, logger = setup_logger(LOG_NAME, level=LOG_LEVEL, filename=logfile)
+    reader.start()
 
     try:
         with open((FOLDER / "wishlist.pkl").absolute(), "rb") as f:
@@ -177,12 +136,18 @@ def main():
 
     logger.info(f"Loaded wishlist with {len(wishlist)} entries")
 
+    kwargs = dict(
+        queue=queue,
+        initializer=initializer,
+    )
+
     # perform_run(
     #     body_order=body_order,
     #     create_obj=create_obj,
     #     p_kwargs=p_kwargs,
     #     evolve_kwargs=evolve_kwargs,
     #     suffix=suffix,
+    #     **kwargs,
     # )
 
     completed = []
@@ -198,7 +163,7 @@ def main():
                 p_kwargs=w["p_kwargs"],
                 evolve_kwargs=w["evolve_kwargs"],
                 suffix=w["suffix"],
-                log_queue=log_queue,
+                **kwargs,
             )
             completed.append(i)
         except Exception as e:
@@ -217,8 +182,10 @@ def main():
             f"Failed to complete some wishlist entries: {len(wishlist_after)} out of {len(wishlist)}, or {len(wishlist_after)/len(wishlist)*100:.2f}%"
         )
 
-    listener.stop()
+    queue.put_nowait(reader.stop_sign)
 
 
 if __name__ == "__main__":
     main()
+
+# %%
