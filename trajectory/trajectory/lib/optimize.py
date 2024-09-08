@@ -6,12 +6,14 @@ import numpy as np
 import multiprocessing as mp
 import logging
 import time
+import os
 
 from tudatpy import constants
 from trajectory.lib.utils import is_notebook
 from trajectory.lib.problem import Problem
+from trajectory.lib.island import Island
 
-logger = logging.getLogger()
+logger = logging.getLogger(os.environ.get("LOG_NAME", None))
 
 
 def evolve(
@@ -22,6 +24,7 @@ def evolve(
     pop_size=10,
     seed=4444,
     algo=None,
+    island=None,
     **kwargs,
 ):
     # fmt: off
@@ -55,7 +58,9 @@ def evolve(
     algo = pg.algorithm(algo)
 
     num_islands = num_islands or max(1, min(32, mp.cpu_count()))
-    udi = pg.mp_island() if is_notebook() else pg.thread_island()
+
+    if island is None:
+        island = Island()
 
     archi = pg.archipelago(
         n=num_islands,
@@ -63,7 +68,7 @@ def evolve(
         prob=prob,
         pop_size=pop_size,
         seed=seed,
-        udi=udi,
+        udi=island,
     )
 
     results = dict(f=[], x=[])
@@ -89,9 +94,11 @@ def evolve(
             if champion_f < best:
                 best = champion_f
 
-        if i % 50 == 0:
+        if i == 1 or i % 50 == 0 or i == num_evolutions:
             t = time.perf_counter() - t0
-            logger.info(f"t: {t:>3.0f}s, evolution {i:{width}}/{num_evolutions}, best: {best:5.0f}")
+            logger.info(
+                f"t: {t:>3.0f}s, evolution {i:{width}}/{num_evolutions}, best: {best:5.0f}"
+            )
 
     runtime = time.perf_counter() - t0
     evolutions = [[i] * pop_size * num_islands for i in range(1, num_evolutions + 1)]
@@ -116,7 +123,9 @@ def evolve(
     nerrs = pop.problem.extract(Problem).errs
     fevals = np.sum([x.get_population().problem.get_fevals() for x in archi])
 
-    logger.info(f"failed evaluations: {nerrs} out of {fevals}, or: {nerrs/fevals * 100:.0f}%")
+    logger.info(
+        f"failed evaluations: {nerrs} out of {fevals}, or: {nerrs/fevals * 100:.0f}%"
+    )
     logger.info(
         f"discarded: {oglen - newlen} out of {oglen}, or: {(oglen - newlen)/oglen * 100:.0f}%"
     )

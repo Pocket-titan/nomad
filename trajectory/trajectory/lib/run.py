@@ -1,6 +1,7 @@
 from typing import Callable
 from pathlib import Path
 from astropy.time import Time, TimeDelta
+from pydash import omit
 
 import cloudpickle as pkl
 import polars as pl
@@ -10,12 +11,13 @@ import json
 import time
 import os
 
+from trajectory.lib.island import Island
 from trajectory.lib.problem import Problem
 from trajectory.lib.optimize import evolve
 from trajectory.lib.utils import truncate
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(os.environ.get("LOG_NAME", None))
 
 J2000 = Time("J2000", format="jyear_str")
 
@@ -39,7 +41,7 @@ class Run:
         self.df = df
         self.num_errs = num_errs
         self.body_order = body_order
-        self.evolve_kwargs = evolve_kwargs
+        self.evolve_kwargs = omit(evolve_kwargs, ["island"])
 
         self.runtime = float(f"{runtime:.2f}")
 
@@ -65,7 +67,12 @@ class Run:
 
     def champion(self) -> dict:
         try:
-            champion = self.df.filter(pl.col("dv") == pl.min("dv")).head(1).collect().to_dicts()[0]
+            champion = (
+                self.df.filter(pl.col("dv") == pl.min("dv"))
+                .head(1)
+                .collect()
+                .to_dicts()[0]
+            )
 
             departure_date = J2000 + TimeDelta(champion["x"][0], format="sec")
             arrival_date = J2000 + TimeDelta(
@@ -141,10 +148,16 @@ def perform_run(
     p_kwargs: dict,
     evolve_kwargs: dict,
     suffix="",
-    log_queue=None,
+    queue=None,
+    initializer=None,
 ) -> Run:
     p = Problem(create_obj, **p_kwargs)
-    df, errs, runtime, num_islands = evolve(p, **evolve_kwargs, log_queue=log_queue)
+
+    island = None
+    if queue is not None and initializer is not None:
+        island = Island(queue, initializer=initializer)
+
+    df, errs, runtime, num_islands = evolve(p, **evolve_kwargs, island=island)
 
     run = Run(
         p=p,

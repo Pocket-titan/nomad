@@ -7,6 +7,7 @@ from pathlib import Path
 import cloudpickle as pkl
 import pygmo as pg
 import numpy as np
+import sys
 import os
 
 
@@ -25,7 +26,9 @@ body_orders = [
 
 # create_obj
 def create_unpowered(body_order, *pars):
-    from tudatpy.numerical_simulation.environment_setup import create_simplified_system_of_bodies
+    from tudatpy.numerical_simulation.environment_setup import (
+        create_simplified_system_of_bodies,
+    )
     from tudatpy.trajectory_design.transfer_trajectory import (
         create_transfer_trajectory,
         mga_settings_unpowered_unperturbed_legs,
@@ -59,7 +62,9 @@ def create_unpowered(body_order, *pars):
 
 
 def create_dsm_velocity(body_order, *pars):
-    from tudatpy.numerical_simulation.environment_setup import create_simplified_system_of_bodies
+    from tudatpy.numerical_simulation.environment_setup import (
+        create_simplified_system_of_bodies,
+    )
     from tudatpy.trajectory_design.transfer_trajectory import (
         create_transfer_trajectory,
         mga_settings_dsm_velocity_based_legs,
@@ -188,7 +193,7 @@ def get_leg_tof_bounds(destination, target):
     ]
 
 
-def generate_wishlist():
+def generate_wishlist(body_orders, create_objs, p_kwargss, evolve_kwargss):
     wishlist = [
         {
             **defaults,
@@ -197,7 +202,7 @@ def generate_wishlist():
             "p_kwargs": x[2],
             "evolve_kwargs": x[3],
         }
-        for x in product(body_orders[:1], create_objs[1:], p_kwargss, evolve_kwargss)
+        for x in product(body_orders, create_objs, p_kwargss, evolve_kwargss)
     ]
 
     def filter_wishlist(x):
@@ -226,7 +231,7 @@ def generate_wishlist():
     return wishlist
 
 
-def main():
+def main(body_orders, create_objs, p_kwargss, evolve_kwargss):
     FOLDER = Path(__file__).parent / "runs"
 
     if os.path.isfile((FOLDER / "wishlist.pkl").absolute()):
@@ -236,7 +241,10 @@ def main():
     else:
         prev = []
 
-    wishlist = [*prev, *generate_wishlist()]
+    wishlist = [
+        *prev,
+        *generate_wishlist(body_orders, create_objs, p_kwargss, evolve_kwargss),
+    ]
 
     if len(wishlist) > 0:
         print(f"Generated wishlist with {len(wishlist)} entries")
@@ -244,8 +252,64 @@ def main():
             pkl.dump(wishlist, f)
 
 
+body_map = {
+    "E": "Earth",
+    "M": "Mars",
+    "J": "Jupiter",
+    "N": "Neptune",
+    "V": "Venus",
+    "S": "Saturn",
+}
+
+create_map = {
+    "unpowered": create_unpowered,
+    "dsm_velocity": create_dsm_velocity,
+}
+
+evolve_map = {
+    "low": dict(
+        num_evolutions=50,
+        num_generations=25,
+        pop_size=10,
+    ),
+    "high": dict(
+        num_evolutions=600,
+        num_generations=250,
+        pop_size=300,
+    ),
+}
+
+
+def parse_args():
+    kwargs = dict(
+        body_orders=body_orders[:1],
+        create_objs=create_objs[:1],
+        p_kwargss=p_kwargss,
+        evolve_kwargss=evolve_kwargss,
+    )
+
+    args = sys.argv[1:]
+
+    if len(args) > 0:
+        create_arg = args[0].split(",")
+        kwargs["create_objs"] = [create_map[x] for x in create_arg]
+
+    if len(args) > 1:
+        order_arg = args[1].split(",")
+        kwargs["body_orders"] = [[body_map[x] for x in y] for y in order_arg]
+
+    if len(args) > 2:
+        evolve_arg = args[2].split(",")
+        kwargs["evolve_kwargss"] = [evolve_map[x] for x in evolve_arg]
+
+    print("Args: " + " x ".join([f"[{x}]" for x in sys.argv[1:]]))
+
+    return kwargs
+
+
 if __name__ == "__main__":
-    main()
+    kwargs = parse_args()
+    main(**kwargs)
 
 
 # %%

@@ -2,10 +2,13 @@ from typing import Optional, Callable
 from itertools import groupby
 from wurlitzer import pipes
 from functools import wraps
+from pathlib import Path
 
 import numpy as np
+import traceback
 import logging
 import re
+import os
 
 from tudatpy.astro.time_conversion import DateTime
 from tudatpy.trajectory_design.transfer_trajectory import (
@@ -17,7 +20,9 @@ from tudatpy.trajectory_design.transfer_trajectory import (
 
 from trajectory.lib.utils import flatten, dictify
 
-logger = logging.getLogger("problem")
+ROOT_FOLDER = str(Path(__file__).parents[2].absolute())
+logger = logging.getLogger(os.environ.get("SUBP_LOG_NAME", None))
+
 
 bound_map = {
     "time": [DateTime(2020, 1, 1).epoch(), DateTime(2050, 1, 1).epoch()],
@@ -71,6 +76,20 @@ def get_parameter_definitions(leg_settings, node_settings):
     return stdout.strip()
 
 
+def once(fn):
+    def inner(*args, **kwargs):
+        if not hasattr(inner, "done"):
+            inner.done = True
+            return fn(*args, **kwargs)
+
+    return inner
+
+
+@once
+def log_once(*args):
+    logger.info(*args)
+
+
 class Problem:
     def __init__(
         self,
@@ -107,6 +126,7 @@ class Problem:
 
             return wrapper
 
+        self.haslogged = False
         self.create_obj = create_wrapper(create_obj)
         self.cache_eq = cache_eq
         self.errs = 0
@@ -121,7 +141,9 @@ class Problem:
         return self.dim
 
     def get_nix(self) -> int:
-        return len([x for x in self.parameters if "value" not in x and x["dtype"] == "int"])
+        return len(
+            [x for x in self.parameters if "value" not in x and x["dtype"] == "int"]
+        )
 
     def get_bounds(self):
         def map_bounds(x):
@@ -130,7 +152,9 @@ class Problem:
 
             return {**x, "bounds": bound_map[x["name"]]}
 
-        bounds = self._preprocess([map_bounds(x) for x in self.parameters if "value" not in x])
+        bounds = self._preprocess(
+            [map_bounds(x) for x in self.parameters if "value" not in x]
+        )
         return tuple([*(list(x) for x in zip(*[x["bounds"] for x in bounds]))])
 
     def fitness(self, dv: np.ndarray):
@@ -139,8 +163,15 @@ class Problem:
         try:
             obj.evaluate(*self.convert_parameters(dv))
             delta_v = obj.delta_v
-        except Exception as e:
-            logger.warning("Exception in fitness", exc_info=e)
+        except Exception:
+            if self.errs == 0:
+                tb = " ".join(
+                    x.strip()
+                    .replace(ROOT_FOLDER, ".")
+                    .replace(" (most recent call last)", "")
+                    for x in traceback.format_exc().split("\n")
+                )
+                logger.warning(tb)
             self.errs += 1
             return self._death_penalty()
 
@@ -319,7 +350,11 @@ class Problem:
                 return {
                     **x,
                     **({"value": int(x["value"])} if "value" in x else {}),
-                    **({"bounds": np.array(x["bounds"], dtype=int)} if "bounds" in x else {}),
+                    **(
+                        {"bounds": np.array(x["bounds"], dtype=int)}
+                        if "bounds" in x
+                        else {}
+                    ),
                 }
 
             return x
