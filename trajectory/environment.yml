@@ -110,6 +110,7 @@ dependencies:
   - libexpat=2.6.2
   - libffi=3.4.2
   - libflac=1.4.3
+  - libgcc=14.1.0
   - libgcc-ng=14.1.0
   - libgcrypt=1.11.0
   - libgettextpo=0.22.5
@@ -137,6 +138,7 @@ dependencies:
   - libsodium=1.0.18
   - libsqlite=3.46.0
   - libssh2=1.11.0
+  - libstdcxx=14.1.0
   - libstdcxx-ng=14.1.0
   - libsystemd0=255
   - libtiff=4.6.0
@@ -285,11 +287,13 @@ dependencies:
       - param==2.1.1
       - polars==1.5.0
       - pybind11-stubgen==2.5.1
+      - pydash==8.0.3
       - pygmo==2.19.5
       - pygmo-plugins-nonfree==0.24
       - pyviz-comms==3.0.3
       - ruamel-yaml==0.18.6
       - ruamel-yaml-clib==0.2.8
+      - ruff==0.6.3
       - seaborn==0.13.2
       - uc-micro-py==1.0.3
       - wat-inspector==0.4.0
