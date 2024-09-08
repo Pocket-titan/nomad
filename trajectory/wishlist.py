@@ -1,5 +1,6 @@
 # %%
 from tudatpy.astro.time_conversion import DateTime
+from pydash import clone_deep, merge
 from astropy.time import TimeDelta
 from itertools import product
 from functools import wraps
@@ -195,13 +196,15 @@ def get_leg_tof_bounds(destination, target):
 
 def generate_wishlist(body_orders, create_objs, p_kwargss, evolve_kwargss):
     wishlist = [
-        {
-            **defaults,
-            "body_order": x[0],
-            "create_obj": with_body_order(x[1], x[0]),
-            "p_kwargs": x[2],
-            "evolve_kwargs": x[3],
-        }
+        merge(
+            clone_deep(defaults),
+            {
+                "body_order": x[0],
+                "create_obj": with_body_order(x[1], x[0]),
+                "p_kwargs": x[2],
+                "evolve_kwargs": x[3],
+            },
+        )
         for x in product(body_orders, create_objs, p_kwargss, evolve_kwargss)
     ]
 

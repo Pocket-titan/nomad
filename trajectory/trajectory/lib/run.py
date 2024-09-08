@@ -49,7 +49,7 @@ class Run:
         algo = self.evolve_kwargs.pop("algo", None)
         if algo is None:
             algo_name = "default"
-        if isinstance(algo, str):
+        elif isinstance(algo, str):
             algo_name = algo
         else:
             algo = algo()

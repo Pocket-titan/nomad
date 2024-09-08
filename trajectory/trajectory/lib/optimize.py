@@ -40,7 +40,7 @@ def evolve(
     if algo is None:
         if p.dim == 1:
             # algo = pg.nlopt(solver="slsqp")
-            algo = ppnf.snopt7()
+            algo = pg.nlopt("slsqp")
             # algo = pg.pso(gen=num_generations, seed=seed)
 
             if hasattr(algo, "set_random_sr_seed"):
