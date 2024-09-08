@@ -65,7 +65,6 @@ def evolve(
     if island is None:
         island = Island(processes=num_islands)
 
-    print("archi")
     archi = pg.archipelago(
         n=num_islands,
         algo=algo,
@@ -74,7 +73,6 @@ def evolve(
         seed=seed,
         udi=island,
     )
-    print("after archi")
 
     results = dict(f=[], x=[])
     errs = []

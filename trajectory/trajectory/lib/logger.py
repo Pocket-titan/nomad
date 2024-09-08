@@ -48,11 +48,15 @@ def setup_logger(
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # handler = logging.FileHandler(filename)
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
+    handlers = [
+        logging.StreamHandler(sys.stdout),
+        logging.handlers.RotatingFileHandler(filename, maxBytes=5_000_000, backupCount=5),
+    ]
 
-    logger.addHandler(handler)
+    for handler in handlers:
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
     logger.setLevel(level)
 
     queue = mp.Manager().Queue(-1)
