@@ -61,10 +61,13 @@ def evolve(
         os.environ.get("SLURM_CPUS_PER_TASK", num_islands)
         or max(1, min(32, mp.cpu_count()))
     )
+    print([*os.environ.items()])
+    print(f"num_islands: {num_islands}")
 
     if island is None:
         island = Island()
 
+    print("archi")
     archi = pg.archipelago(
         n=num_islands,
         algo=algo,
@@ -73,6 +76,7 @@ def evolve(
         seed=seed,
         udi=island,
     )
+    print("after archi")
 
     results = dict(f=[], x=[])
     errs = []

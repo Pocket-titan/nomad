@@ -13,7 +13,7 @@ import os
 
 from trajectory.lib.island import Island
 from trajectory.lib.problem import Problem
-from trajectory.lib.optimize import evolve
+from trajectory.lib.evolve import evolve
 from trajectory.lib.utils import truncate
 
 
