@@ -153,10 +153,10 @@ def perform_run(
 ) -> Run:
     p = Problem(create_obj, **p_kwargs)
 
-    print("initializing island...")
     island = None
     if queue is not None and initializer is not None:
-        island = Island(queue, initializer=initializer)
+        processes = os.environ.get("SLURM_CPUS_PER_TASK", None)
+        island = Island(processes, queue, initializer)
 
     print("evolving...")
     df, errs, runtime, num_islands = evolve(p, **evolve_kwargs, island=island)

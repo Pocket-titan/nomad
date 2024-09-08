@@ -58,14 +58,12 @@ def evolve(
     algo = pg.algorithm(algo)
 
     num_islands = int(
-        os.environ.get("SLURM_CPUS_PER_TASK", num_islands)
-        or max(1, min(32, mp.cpu_count()))
+        num_islands
+        or os.environ.get("SLURM_CPUS_PER_TASK", max(1, min(32, mp.cpu_count())))
     )
-    print([*os.environ.items()])
-    print(f"num_islands: {num_islands}")
 
     if island is None:
-        island = Island()
+        island = Island(processes=num_islands)
 
     print("archi")
     archi = pg.archipelago(

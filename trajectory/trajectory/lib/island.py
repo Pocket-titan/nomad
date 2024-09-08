@@ -70,7 +70,8 @@ class Island(object):
     _queue = None
     _pool = None
 
-    def __init__(self, queue=None, initializer=None):
+    def __init__(self, processes=None, queue=None, initializer=None):
+        self.processes = processes
         self.initializer = initializer
 
         if queue is not None and initializer is not None:
@@ -81,7 +82,11 @@ class Island(object):
         self._init()
 
     def _init(self):
-        self.init_pool(initializer=self.initializer, initargs=self.initargs)
+        self.init_pool(
+            processes=self.processes,
+            initializer=self.initializer,
+            initargs=self.initargs,
+        )
 
     @staticmethod
     def init_pool(processes=None, initializer=None, initargs=None):
