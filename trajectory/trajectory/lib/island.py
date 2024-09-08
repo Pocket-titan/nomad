@@ -30,6 +30,9 @@ def _make_pool(processes, initializer, initargs):
 
     mp_ctx = _get_spawn_context()
 
+    print("processes: ", processes)
+    print(mp_ctx.cpu_count())
+
     with _temp_disable_sigint():
         pool = mp_ctx.Pool(
             processes=processes,
