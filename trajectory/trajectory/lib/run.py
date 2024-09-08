@@ -156,6 +156,7 @@ def perform_run(
     island = None
     if queue is not None and initializer is not None:
         processes = os.environ.get("SLURM_CPUS_PER_TASK", None)
+        processes = int(processes) if processes is not None else None
         island = Island(processes, queue, initializer)
 
     print("evolving...")
