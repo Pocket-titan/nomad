@@ -153,12 +153,15 @@ def perform_run(
 ) -> Run:
     p = Problem(create_obj, **p_kwargs)
 
+    print("initializing island...")
     island = None
     if queue is not None and initializer is not None:
         island = Island(queue, initializer=initializer)
 
+    print("evolving...")
     df, errs, runtime, num_islands = evolve(p, **evolve_kwargs, island=island)
 
+    print("performing run...")
     run = Run(
         p=p,
         df=df.lazy(),
@@ -168,6 +171,7 @@ def perform_run(
         runtime=runtime,
     )
 
+    print("making run...")
     name = make_run_name(run, suffix=suffix)
 
     logger.info(f"Finished run '{name}' after running for {runtime:.2f} seconds")
