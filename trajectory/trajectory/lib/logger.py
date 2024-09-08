@@ -48,8 +48,8 @@ def setup_logger(
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    handler = logging.FileHandler(filename)
-    # handler = logging.StreamHandler()
+    # handler = logging.FileHandler(filename)
+    handler = logging.StreamHandler()
     handler.setFormatter(formatter)
 
     logger.addHandler(handler)

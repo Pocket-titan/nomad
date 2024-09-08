@@ -14,10 +14,8 @@
 
 ROOT=/scratch/jelmargerritse/nomad/trajectory
 
-module load 2023r1
-module load miniconda3
-module load openssh
-module load git
+module load 2023r1 miniconda3
+module load openssh git
 
 /scratch/jelmargerritse/conda_init.sh
 conda activate tudat-space
