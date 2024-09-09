@@ -134,21 +134,10 @@ def main():
         logger.error("Failed to load wishlist", exc_info=e)
         return
 
-    logger.info(f"Loaded wishlist with {len(wishlist)} entries")
-
     kwargs = dict(
         queue=queue,
         initializer=initializer,
     )
-
-    # perform_run(
-    #     body_order=body_order,
-    #     create_obj=create_obj,
-    #     p_kwargs=p_kwargs,
-    #     evolve_kwargs=evolve_kwargs,
-    #     suffix=suffix,
-    #     **kwargs,
-    # )
 
     completed = []
     for i, w in enumerate(wishlist):

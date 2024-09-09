@@ -7,12 +7,12 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=1G
 #SBATCH --account=education-ae-msc-ae
-#SBATCH --output=/scratch/jelmargerritse/logs/%j-run.out
-#SBATCH --error=/scratch/jelmargerritse/logs/%j-run.err
+#SBATCH --output=/scratch/jelmargerritse/nomad/runs/logs/%j-run.out
+#SBATCH --error=/scratch/jelmargerritse/nomad/runs/logs/%j-run.err
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-ROOT=/scratch/jelmargerritse/nomad/trajectory
+dir=/scratch/jelmargerritse/nomad/trajectory
 
 module load miniconda3
 module load openssh git
@@ -20,6 +20,4 @@ module load openssh git
 /scratch/jelmargerritse/conda_init.sh
 conda activate tudat-space
 
-$ROOT/clean_runs.sh
-python $ROOT/wishlist.py unpowered EMJN low
-srun python $ROOT/main.py
+srun $dir/job.sh

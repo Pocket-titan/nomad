@@ -126,7 +126,6 @@ class Problem:
 
             return wrapper
 
-        self.haslogged = False
         self.create_obj = create_wrapper(create_obj)
         self.cache_eq = cache_eq
         self.errs = 0

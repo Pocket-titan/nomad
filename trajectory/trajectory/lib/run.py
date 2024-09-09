@@ -159,10 +159,11 @@ def perform_run(
         processes = int(processes) if processes is not None else None
         island = Island(processes, queue, initializer)
 
-    print("evolving...")
     df, errs, runtime, num_islands = evolve(p, **evolve_kwargs, island=island)
 
-    print("performing run...")
+    for handler in logger.handlers:
+        handler.flush()
+
     run = Run(
         p=p,
         df=df.lazy(),
@@ -172,7 +173,6 @@ def perform_run(
         runtime=runtime,
     )
 
-    print("making run...")
     name = make_run_name(run, suffix=suffix)
 
     logger.info(f"Finished run '{name}' after running for {runtime:.2f} seconds")
