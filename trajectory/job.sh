@@ -20,4 +20,5 @@ module load openssh git
 /scratch/jelmargerritse/conda_init.sh
 conda activate tudat-space
 
+mkdir -p $dir/runs/logs
 srun $dir/job.sh
