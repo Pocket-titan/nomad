@@ -10,6 +10,7 @@ import pygmo as pg
 import numpy as np
 import sys
 import os
+from pprint import pprint
 
 
 # body_order
@@ -208,6 +209,8 @@ def generate_wishlist(body_orders, create_objs, p_kwargss, evolve_kwargss):
         for x in product(body_orders, create_objs, p_kwargss, evolve_kwargss)
     ]
 
+    pprint(wishlist)
+
     def filter_wishlist(x):
         return True
 
@@ -236,6 +239,12 @@ def generate_wishlist(body_orders, create_objs, p_kwargss, evolve_kwargss):
 
 def main(body_orders, create_objs, p_kwargss, evolve_kwargss):
     FOLDER = Path(__file__).parent / "runs"
+
+    print("main:")
+    print(f"body_orders: {body_orders}")
+    print(f"create_objs: {create_objs}")
+    print(f"p_kwargss: {p_kwargss}")
+    print(f"evolve_kwargss: {evolve_kwargss}")
 
     if os.path.isfile((FOLDER / "wishlist.pkl").absolute()):
         with open((FOLDER / "wishlist.pkl").absolute(), "rb") as f:
