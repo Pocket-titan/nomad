@@ -290,9 +290,9 @@ evolve_map = {
         pop_size=300,
     ),
     "ultra": dict(
-        num_evolutions=2000,
+        num_evolutions=1000,
         num_generations=1000,
-        pop_size=1000,
+        pop_size=4000,
     ),
 }
 

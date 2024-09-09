@@ -34,11 +34,10 @@ class LogReader(Thread):
 
 
 class LogFilter(logging.Filter):
-    def __init__(self, name: str = "", threshold=0.8) -> None:
+    def __init__(self, name: str = "", threshold=0.95) -> None:
         super().__init__(name)
         self.threshold = threshold
         self._reset()
-        self.times_flushed = 0
 
     def _preprocess(self, msg: str):
         out = re.sub(r"\(repeated ([0-9]*) times\)", "", msg)
@@ -61,6 +60,11 @@ class LogFilter(logging.Filter):
         self._func = record.funcName
 
     def filter(self, record):
+        if record.levelno not in [logging.WARNING, logging.ERROR]:
+            if self.last_message is not None:
+                self._reset()
+            return True
+
         if self.last_message is None:
             self._save(record)
             return True
