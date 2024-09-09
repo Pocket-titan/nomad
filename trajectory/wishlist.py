@@ -169,6 +169,7 @@ def get_leg_tof_bounds(destination, target):
     }
 
     bound_map = {
+        ("_", "_"): "medium",
         ("Earth", "Neptune"): "long",
         ("Earth", "Jupiter"): "long",
         ("Earth", "Saturn"): "long",
@@ -187,7 +188,10 @@ def get_leg_tof_bounds(destination, target):
     }
 
     if (destination, target) not in bound_map:
-        destination, target = target, destination
+        if (target, destination) in bound_map:
+            destination, target = target, destination
+        else:
+            destination, target = "_", "_"
 
     return [
         TimeDelta(x, format="jd").to_value("sec")

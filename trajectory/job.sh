@@ -20,5 +20,4 @@ module load miniconda3
 conda activate tudat-space
 
 $dir/clean_runs.sh
-srun python $dir/wishlist.py unpowered EMJN,EN,EVJN,EEVJN,EMEJN,EVEJN ultra
-srun python $dir/main.py
+srun python $dir/wishlist.py unpowered EMJN,EN,EVJN,EEVJN,EMEJN,EVEJN ultra && srun python $dir/main.py
