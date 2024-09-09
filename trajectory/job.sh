@@ -15,10 +15,8 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 dir=/scratch/jelmargerritse/nomad/trajectory
 
 module load miniconda3
-module load openssh git
 
 /scratch/jelmargerritse/conda_init.sh
 conda activate tudat-space
 
-mkdir -p $dir/runs/logs
 srun $dir/job.sh
