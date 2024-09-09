@@ -19,4 +19,6 @@ module load miniconda3
 /scratch/jelmargerritse/conda_init.sh
 conda activate tudat-space
 
-srun $dir/job.sh
+$dir/clean_runs.sh
+srun python $dir/wishlist.py unpowered EMJN ultra
+srun python $dir/main.py
