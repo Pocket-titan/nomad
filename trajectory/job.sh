@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=1G
 #SBATCH --account=education-ae-msc-ae
-#SBATCH --output=/scratch/jelmargerritse/nomad/runs/logs/%j-run.out
-#SBATCH --error=/scratch/jelmargerritse/nomad/runs/logs/%j-run.err
+#SBATCH --output=/scratch/jelmargerritse/nomad/trajectory/runs/logs/%j-run.out
+#SBATCH --error=/scratch/jelmargerritse/nomad/trajectory/runs/logs/%j-run.err
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
