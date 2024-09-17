@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import traceback
+import colorlog
 import logging
 import re
 import os
@@ -21,7 +22,7 @@ from tudatpy.trajectory_design.transfer_trajectory import (
 from trajectory.lib.utils import flatten, dictify
 
 ROOT_FOLDER = str(Path(__file__).parents[2].absolute())
-logger = logging.getLogger(os.environ.get("SUBP_LOG_NAME", None))
+logger = colorlog.getLogger(os.environ.get("SUBP_LOG_NAME", None))
 
 
 bound_map = {

@@ -8,6 +8,7 @@ import pygmo_plugins_nonfree as ppnf
 import cloudpickle as pkl
 import pygmo as pg
 import numpy as np
+import colorlog
 import logging
 import os
 
@@ -98,7 +99,7 @@ SUBP_LOG_NAME = f"{LOG_NAME}.subp"
 
 
 def initializer(queue):
-    logger = logging.getLogger(SUBP_LOG_NAME)
+    logger = colorlog.getLogger(SUBP_LOG_NAME)
 
     add = True
     for handler in logger.handlers:
@@ -116,6 +117,7 @@ def initializer(queue):
 
 def main():
     freeze_support()
+    np.set_printoptions(precision=2, suppress=True)
 
     os.environ["LOG_NAME"] = LOG_NAME
     os.environ["SUBP_LOG_NAME"] = SUBP_LOG_NAME

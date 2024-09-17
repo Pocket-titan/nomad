@@ -4,6 +4,8 @@ from threading import Thread
 import multiprocessing as mp
 import logging.handlers
 import logging
+import colorlog
+import colorlog
 import traceback
 import sys
 import re
@@ -23,7 +25,7 @@ class LogReader(Thread):
                 if record == self.stop_sign:
                     break
 
-                logger = logging.getLogger(record.name)
+                logger = colorlog.getLogger(record.name)
                 logger.handle(record)
             except (KeyboardInterrupt, SystemExit):
                 raise
@@ -176,24 +178,64 @@ def setup_logger(
     filename: str = "main.log",
     stop_sign=True,
 ) -> tuple[LogReader, mp.Queue, logging.Logger]:
-    logger = logging.getLogger(name)
+    logger = colorlog.getLogger(name)
 
     for h in logger.handlers[:]:
         logger.removeHandler(h)
         h.close()
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    fmt = "%(asctime)s - %(levelname)s - %(funcName)s - %(message)s"
+    datefmt = "%m-%d %H:%M"
 
     handlers = [
-        StreamHandler(sys.stdout),
+        colorlog.StreamHandler(sys.stdout),
         RotatingFileHandler(filename, maxBytes=5_000_000, backupCount=5),
     ]
 
+    handlers[0].setFormatter(
+        colorlog.ColoredFormatter(
+            fmt="%(time_log_color)s%(asctime)s%(time_log_color)s - %(log_color)s%(levelname)s%(time_log_color)s - %(func_log_color)s%(funcName)s%(time_log_color)s - %(message_log_color)s%(message)s",
+            datefmt="%m-%d %H:%M",
+            log_colors={
+                "DEBUG": "blue",
+                "INFO": "cyan",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "red,bg_white",
+            },
+            secondary_log_colors={
+                "message": {
+                    "DEBUG": "light_blue",
+                    "INFO": "light_cyan",
+                    "WARNING": "light_yellow",
+                    "ERROR": "light_red",
+                    "CRITICAL": "light_purple",
+                },
+                "func": {
+                    "DEBUG": "light_purple",
+                    "INFO": "light_purple",
+                    "WARNING": "light_purple",
+                    "ERROR": "light_purple",
+                    "CRITICAL": "light_purple",
+                },
+                "time": {
+                    "DEBUG": "light_black",
+                    "INFO": "light_black",
+                    "WARNING": "light_black",
+                    "ERROR": "light_black",
+                    "CRITICAL": "light_black",
+                },
+            },
+        )
+    )
+    handlers[1].setFormatter(
+        logging.Formatter(
+            fmt="%(asctime)s - %(levelname)s - %(funcName)s - %(message)s",
+            datefmt="%m-%d %H:%M",
+        )
+    )
+
     for handler in handlers:
-        handler.setFormatter(formatter)
         handler.addFilter(LogFilter())
         logger.addHandler(handler)
 

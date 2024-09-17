@@ -1,11 +1,14 @@
+# %%
 from typing import Callable
 from pathlib import Path
 from astropy.time import Time, TimeDelta
+from frozendict import frozendict
 from pydash import omit
 
 import cloudpickle as pkl
 import polars as pl
 import pygmo as pg
+import colorlog
 import logging
 import json
 import time
@@ -17,7 +20,7 @@ from trajectory.lib.evolve import evolve
 from trajectory.lib.utils import truncate
 
 
-logger = logging.getLogger(os.environ.get("LOG_NAME", None))
+logger = colorlog.getLogger(os.environ.get("LOG_NAME", None))
 
 J2000 = Time("J2000", format="jyear_str")
 
@@ -36,6 +39,7 @@ class Run:
         evolve_kwargs: dict,
         body_order: list[str],
         runtime: float,
+        **kwargs,
     ) -> None:
         self.p = p
         self.df = df
@@ -44,26 +48,32 @@ class Run:
         self.evolve_kwargs = omit(evolve_kwargs, ["island"])
 
         self.runtime = float(f"{runtime:.2f}")
+        self.kwargs = frozendict(kwargs)
 
-        algo_name = ""
-        algo = self.evolve_kwargs.pop("algo", None)
-        if algo is None:
-            algo_name = "default"
-        elif isinstance(algo, str):
-            algo_name = algo
-        else:
-            algo = algo()
-            try:
-                algo_name = repr(pg.algorithm(algo))
-            except Exception:
-                if hasattr(algo, "inner_algorithm"):
-                    algo_name = f"{typename(algo)}_{algo.inner_algorithm.get_name()}"
-                elif hasattr(algo, "get_solver_name"):
-                    algo_name = f"{typename(algo)}_{algo.get_solver_name()}"
-                else:
-                    algo_name = typename(algo)
+        # self.algo_name = evolve_kwargs["algo_name"]
+        # self.algo_kwargs = evolve_kwargs["algo_kwargs"]
 
-        self.algo = [x.replace("\t", "    ") for x in algo_name.split("\n")]
+        # algo_name = ""
+        # algo = self.evolve_kwargs.pop("algo", None)
+        # if algo is None:
+        #     algo_name = "default"
+        # elif isinstance(algo, str):
+        #     algo_name = algo
+        # elif isinstance(algo, list):
+        #     algo_name = "\n".join(algo)
+        # else:
+        #     algo = algo()
+        #     try:
+        #         algo_name = repr(pg.algorithm(algo))
+        #     except Exception:
+        #         if hasattr(algo, "inner_algorithm"):
+        #             algo_name = f"{typename(algo)}_{algo.inner_algorithm.get_name()}"
+        #         elif hasattr(algo, "get_solver_name"):
+        #             algo_name = f"{typename(algo)}_{algo.get_solver_name()}"
+        #         else:
+        #             algo_name = typename(algo)
+
+        # self.algo = [x.replace("\t", "    ") for x in algo_name.split("\n")]
 
     def champion(self) -> dict:
         try:
@@ -101,7 +111,8 @@ class Run:
                     "body_order": self.body_order,
                     "num_errs": self.num_errs,
                     "champion": self.champion(),
-                    "evolve_kwargs": {**self.evolve_kwargs, "algo": self.algo},
+                    "evolve_kwargs": {**self.evolve_kwargs},
+                    "kwargs": self.kwargs,
                 },
                 f,
                 indent=4,
@@ -127,6 +138,7 @@ class Run:
             runtime=info["runtime"],
             body_order=info["body_order"],
             evolve_kwargs=info["evolve_kwargs"],
+            **info["kwargs"],
         )
 
 
@@ -139,7 +151,8 @@ def make_run_name(run: Run, suffix="") -> str:
     num = (run.champion() or dict(dv=-1))["dv"]
     dv = f"{num/10:.1e}".replace(".", "").replace("+", "")
 
-    return f"{month:02d}_{day:02d}_{hour:02d}h{minute:02d}m_{order}_{dv}_{run.evolve_kwargs['num_islands']}{suffix}"
+    # return f"{month:02d}_{day:02d}_{hour:02d}h{minute:02d}m_{order}_{dv}_{run.evolve_kwargs['num_islands']}{suffix}"
+    return f"{order}_{dv}_{run.evolve_kwargs['num_islands']}{suffix}"
 
 
 def perform_run(
@@ -150,6 +163,7 @@ def perform_run(
     suffix="",
     queue=None,
     initializer=None,
+    **kwargs,
 ) -> Run:
     p = Problem(create_obj, **p_kwargs)
 
@@ -171,6 +185,7 @@ def perform_run(
         body_order=body_order,
         evolve_kwargs={**evolve_kwargs, "num_islands": num_islands},
         runtime=runtime,
+        **kwargs,
     )
 
     name = make_run_name(run, suffix=suffix)
@@ -178,6 +193,16 @@ def perform_run(
     logger.info(f"Finished run '{name}' after running for {runtime:.2f} seconds")
 
     FOLDER = Path(__file__).parents[2] / "runs"
+
+    if (FOLDER / name).exists():
+        logger.warning(f"Run '{name}' already exists, adding number")
+
+        num_prevs = len(
+            [x for x in FOLDER.glob("*") if x.is_dir() and x.name.startswith(name)]
+        )
+
+        name += f"_{num_prevs}"
+
     run.write(FOLDER, name)
 
     logger.info(f"Successfully saved run '{name}'")
