@@ -476,7 +476,7 @@ cassini_bunch = [
     merge(*clone_deep(x))
     for x in product(
         [cassini],
-        [dict(evolve_kwargs=evolve_map["high"])],
+        [dict(evolve_kwargs=evolve_map["medium"])],
         [
             dict(evolve_kwargs=dict(algo_name=k, algo_kwargs=v))
             for k, v in algo_kwargs.items()

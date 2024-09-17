@@ -2,10 +2,10 @@
 
 #SBATCH --job-name="trajectory"
 #SBATCH --partition=compute
-#SBATCH --time=02:00:00
+#SBATCH --time=03:00:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=1G
+#SBATCH --cpus-per-task=16
+#SBATCH --mem-per-cpu=2G
 #SBATCH --account=education-ae-msc-ae
 #SBATCH --output=/scratch/jelmargerritse/nomad/trajectory/logs/%j-run.out
 #SBATCH --error=/scratch/jelmargerritse/nomad/trajectory/logs/%j-run.err
