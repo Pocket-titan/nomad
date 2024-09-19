@@ -189,7 +189,7 @@ def setup_logger(
 
     handlers = [
         colorlog.StreamHandler(sys.stdout),
-        RotatingFileHandler(filename, maxBytes=5_000_000, backupCount=5),
+        # RotatingFileHandler(filename, maxBytes=5_000_000, backupCount=5),
     ]
 
     handlers[0].setFormatter(
@@ -228,12 +228,12 @@ def setup_logger(
             },
         )
     )
-    handlers[1].setFormatter(
-        logging.Formatter(
-            fmt="%(asctime)s - %(levelname)s - %(funcName)s - %(message)s",
-            datefmt="%m-%d %H:%M",
-        )
-    )
+    # handlers[1].setFormatter(
+    #     logging.Formatter(
+    #         fmt="%(asctime)s - %(levelname)s - %(funcName)s - %(message)s",
+    #         datefmt="%m-%d %H:%M",
+    #     )
+    # )
 
     for handler in handlers:
         handler.addFilter(LogFilter())

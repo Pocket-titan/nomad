@@ -169,3 +169,6 @@ Let me know your thoughts if you want
 - Pykep does not have ephemeris past 2050 :/ -> use tudatpy
 
 The objective of this study was to update the prior UOP study conducted for the 2011 Visions and Voyages Decadal Survey [Iess et al. 2014]. Initial direction included the incorporation of new launch dates corresponding to a project start between 2023 and 2030, as well as refined science goals and payload complement (see also § 1). The study was also directed to increase mission maturity/fidelity where possible, and to develop a chemical-only mission design, thereby removing the solar electric propulsion (SEP) stage that was used in the 2011 UOP concept. The use of radioisotope power systems is assumed. The overall study goal was to mature a comprehensive, but low-cost, technologically-ready Flagship mission.
+
+J-N conjunction happens every ~13 years
+S-N is ~35 years

@@ -27,6 +27,10 @@ body_orders = [
     ["Earth", "Venus", "Earth", "Mars", "Jupiter", "Neptune"],
 ]
 
+# EN, EJN (odyssey)
+# EJN, EMJN (triton oceon world surveyor)
+# EVEEJN (trident discovery mission)
+
 
 # create_obj
 def create_unpowered(

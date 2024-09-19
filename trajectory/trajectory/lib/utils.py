@@ -1,5 +1,21 @@
 from typing import Union, Any
+from astropy.time import Time, TimeDelta
 import numpy as np
+
+
+def get_dates(x, number_of_legs):
+    J2000 = Time("J2000", format="jyear_str")
+
+    dates = (
+        J2000 + TimeDelta(np.cumsum(x, axis=-1)[..., : number_of_legs + 1], format="sec")
+    ).to_value("datetime")
+
+    return dates
+
+
+def get_departure_arrival_time(x, number_of_legs):
+    fn = np.vectorize(lambda x: x.strftime("%Y-%m-%d %H:%M"))
+    return fn(get_dates(x, number_of_legs)[..., [0, -1]])
 
 
 def merge(a: dict, b: dict, path=[]):
@@ -9,7 +25,9 @@ def merge(a: dict, b: dict, path=[]):
         else:
             if isinstance(a[k], dict) and isinstance(b[k], dict):
                 merge(a[k], b[k], path + [str(k)])
-            elif isinstance(a[k], (list, np.ndarray)) and isinstance(b[k], (list, np.ndarray)):
+            elif isinstance(a[k], (list, np.ndarray)) and isinstance(
+                b[k], (list, np.ndarray)
+            ):
                 a[k] = b[k]
             elif a[k] != b[k]:
                 raise Exception("Conflict at " + ".".join(path + [str(k)]))
@@ -30,7 +48,9 @@ def dictify(x: Union[dict, list, np.ndarray, Any], level=-1, maxlevel=2, leavela
         if len(x) == 0:
             return {}
 
-        v = dictify(dict(enumerate(x)), level=level + 1, maxlevel=maxlevel, leavelast=leavelast)
+        v = dictify(
+            dict(enumerate(x)), level=level + 1, maxlevel=maxlevel, leavelast=leavelast
+        )
 
         if (
             leavelast

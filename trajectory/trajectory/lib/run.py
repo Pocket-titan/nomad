@@ -31,6 +31,8 @@ def typename(x):
 
 
 class Run:
+    name: str
+
     def __init__(
         self,
         p: Problem,
@@ -131,7 +133,7 @@ class Run:
         with open((folder / run_name / "problem.pkl").absolute(), "rb") as f:
             p = pkl.load(f)
 
-        return cls(
+        run = cls(
             p=p,
             df=df,
             num_errs=info["num_errs"],
@@ -140,6 +142,8 @@ class Run:
             evolve_kwargs=info["evolve_kwargs"],
             **info["kwargs"],
         )
+        run.name = run_name
+        return run
 
 
 def make_run_name(run: Run, suffix="") -> str:
@@ -163,13 +167,14 @@ def perform_run(
     suffix="",
     queue=None,
     initializer=None,
+    folder=None,
     **kwargs,
 ) -> Run:
     p = Problem(create_obj, **p_kwargs)
 
     island = None
     if queue is not None and initializer is not None:
-        processes = os.environ.get("SLURM_CPUS_PER_TASK", None)
+        processes = os.environ.get("NUM_CPUS", evolve_kwargs.get("num_islands", None))
         processes = int(processes) if processes is not None else None
         island = Island(processes, queue, initializer)
 
@@ -192,17 +197,15 @@ def perform_run(
 
     logger.info(f"Finished run '{name}' after running for {runtime:.2f} seconds")
 
-    FOLDER = Path(__file__).parents[2] / "runs"
-
-    if (FOLDER / name).exists():
+    if (folder / name).exists():
         logger.warning(f"Run '{name}' already exists, adding number")
 
         num_prevs = len(
-            [x for x in FOLDER.glob("*") if x.is_dir() and x.name.startswith(name)]
+            [x for x in folder.glob("*") if x.is_dir() and x.name.startswith(name)]
         )
 
         name += f"_{num_prevs}"
 
-    run.write(FOLDER, name)
+    run.write(folder, name)
 
     logger.info(f"Successfully saved run '{name}'")

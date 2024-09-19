@@ -1,2 +1,10 @@
+runs_*/
 runs/
 logs/
+uranus/
+test/
+cassini_wide/
+ev200pop100/
+*/
+# !spice/
+!trajectory/

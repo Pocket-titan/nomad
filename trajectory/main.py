@@ -2,6 +2,7 @@
 from tudatpy.astro.time_conversion import DateTime
 from multiprocessing import freeze_support
 from logging.handlers import QueueHandler
+from argparse import ArgumentParser
 from pathlib import Path
 
 import pygmo_plugins_nonfree as ppnf
@@ -16,6 +17,7 @@ from trajectory.lib.logger import setup_logger
 from trajectory.lib.run import perform_run
 
 
+FOLDER = Path(__file__).parent
 body_order = ["Earth", "Mars", "Jupiter", "Neptune"]
 
 
@@ -115,22 +117,24 @@ def initializer(queue):
     logger.setLevel(LOG_LEVEL)
 
 
-def main():
+def main(args):
     freeze_support()
     np.set_printoptions(precision=2, suppress=True)
 
     os.environ["LOG_NAME"] = LOG_NAME
     os.environ["SUBP_LOG_NAME"] = SUBP_LOG_NAME
 
-    FOLDER = Path(__file__).parent / "runs"
-    FOLDER.mkdir(exist_ok=True)
+    folder = FOLDER / args.folder
+    folder.mkdir(parents=True, exist_ok=True)
 
-    logfile = (FOLDER / "main.log").absolute()
+    logfile = (folder / "main.log").absolute()
     reader, queue, logger = setup_logger(LOG_NAME, level=LOG_LEVEL, filename=logfile)
     reader.start()
 
+    logger.info(f"Starting main for runs folder: {str(folder)}")
+
     try:
-        with open((FOLDER / "wishlist.pkl").absolute(), "rb") as f:
+        with open((folder / "wishlist.pkl").absolute(), "rb") as f:
             wishlist: list[dict] = pkl.load(f)
     except Exception as e:
         logger.error("Failed to load wishlist", exc_info=e)
@@ -154,6 +158,7 @@ def main():
                 p_kwargs=w["p_kwargs"],
                 evolve_kwargs=w["evolve_kwargs"],
                 suffix=w["suffix"],
+                folder=folder,
                 **kwargs,
             )
             completed.append(i)
@@ -164,7 +169,7 @@ def main():
     logger.info("Finished running wishlist")
 
     wishlist_after = [i for i in range(len(wishlist)) if i not in completed]
-    with open((FOLDER / "wishlist_after.pkl").absolute(), "wb") as f:
+    with open((folder / "wishlist_after.pkl").absolute(), "wb") as f:
         pkl.dump(wishlist_after, f)
 
     if len(wishlist_after) == 0:
@@ -177,5 +182,18 @@ def main():
     queue.put_nowait(reader.stop_sign)
 
 
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "-f",
+        "--folder",
+        type=str,
+        default="runs",
+        help="Folder to save the runs in",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)

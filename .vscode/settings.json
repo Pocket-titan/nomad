@@ -1,0 +1,10 @@
+{
+  "python.analysis.stubPath": "${workspaceFolder}/trajectory/stubs",
+  "python.analysis.extraPaths": ["${workspaceFolder}/trajectory"],
+  "python.autoComplete.extraPaths": ["${workspaceFolder}/trajectory"],
+  "jupyter.notebookFileRoot": "${workspaceFolder}/trajectory",
+  "python.analysis.exclude": ["**/stubs/**"],
+  "files.exclude": {
+    "**/stubs": true
+  }
+}

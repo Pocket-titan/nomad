@@ -110,13 +110,13 @@ class Problem:
     ) -> None:
         def create_wrapper(fn):
             @wraps(fn)
-            def wrapper(*args):
+            def wrapper(*args, **kwargs):
                 og_dv = args
                 if len(args) == 1 and isinstance(args[0], (list, np.ndarray)):
                     og_dv = args[0]
 
                 crargs = og_dv if len(og_dv) == 0 else self._add_info(og_dv)
-                ret = fn(*crargs)
+                ret = fn(*crargs, **kwargs)
 
                 if len(ret) == 4:
                     obj, leg_settings, node_settings, dv = ret

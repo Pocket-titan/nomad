@@ -14,7 +14,7 @@ import colorlog
 import time
 import os
 
-from trajectory.lib.utils import is_notebook
+from trajectory.lib.utils import get_departure_arrival_time
 from trajectory.lib.problem import Problem
 from trajectory.lib.island import Island
 
@@ -22,15 +22,6 @@ logger = colorlog.getLogger(os.environ.get("LOG_NAME", None))
 
 J2000 = Time("J2000", format="jyear_str")
 MJD2000 = J2000.to_value("mjd")
-
-
-def get_departure_arrival_time(x, number_of_legs):
-    J2000 = Time("J2000", format="jyear_str")
-    dep, arr = [
-        (J2000 + x * TimeDelta(1, format="sec")).to_datetime()
-        for x in [x[0], np.cumsum(x[: number_of_legs + 1])[-1]]
-    ]
-    return [x.strftime("%Y-%m-%d %H:%M") for x in [dep, arr]]
 
 
 def convert_state_vector(x, number_of_legs):
@@ -55,13 +46,18 @@ def convert_state_vector(x, number_of_legs):
 
 
 algo_map = {
-    "gaco": lambda kw: pg.gaco(**kw),
+    "gaco": lambda kw: pg.gaco(**{**kw, "threshold": kw["gen"] // 2}),
     "pso": lambda kw: pg.pso(**kw),
     "sga": lambda kw: pg.sga(**kw),
     "de": lambda kw: pg.de(**kw),
     "sade": lambda kw: pg.sade(**kw),
     "slsqp": lambda kw: pg.nlopt(**merge({"solver": "slsqp"}, kw)),
     "sa": lambda kw: pg.simulated_annealing(**kw),
+    # new
+    "de1220": lambda kw: pg.de1220(**kw),
+    "cmaes": lambda kw: pg.cmaes(**kw),
+    "ihs": lambda kw: pg.ihs(**kw),
+    "nsga2": lambda kw: pg.nsga2(**kw),
 }
 
 
@@ -69,7 +65,7 @@ algo_map = {
 def evolve(
     p: Problem,
     num_evolutions=50,
-    num_generations=10,
+    num_generations=None,
     num_islands=None,
     pop_size=10,
     seed=4444,
@@ -100,24 +96,32 @@ def evolve(
         if p.dim == 2:
             algo = pg.moead(gen=num_generations, seed=seed, **kwargs)
     else:
+        algo_kw = algo_kwargs.get("algo", algo_kwargs or dict())
+        if "gen" in algo_kw and num_generations is not None:
+            algo_kw["gen"] = num_generations
+
         if algo_name.startswith("mbh_"):
             inner_name = algo_name.split("_")[1]
-            algo = pg.mbh(algo_map[inner_name](algo_kwargs["algo"]), **algo_kwargs["mbh"])
+            algo = pg.mbh(algo_map[inner_name](algo_kw), **algo_kwargs["mbh"])
         else:
-            algo = algo_map[algo_name](algo_kwargs or dict())
+            algo = algo_map[algo_name](algo_kw)
 
     if hasattr(algo, "set_random_sr_seed"):
         algo.set_random_sr_seed(seed)
+
     algo = pg.algorithm(algo)
     # algo.set_verbosity(1)
 
     num_islands = int(
-        num_islands
-        or os.environ.get("SLURM_CPUS_PER_TASK", max(1, min(32, mp.cpu_count())))
+        num_islands or os.environ.get("NUM_CPUS", max(1, min(32, mp.cpu_count())))
     )
 
     if island is None:
         island = Island(processes=num_islands)
+
+    if num_generations is None:
+        logger.warning("num_generations is None!!!")
+        num_generations = 10
 
     archi = pg.archipelago(
         n=num_islands,
@@ -126,6 +130,9 @@ def evolve(
         pop_size=pop_size,
         seed=seed,
         udi=island,
+        # t=pg.fully_connected(),
+        # s_pol=pg.s_policies.select_best(0.1),
+        # r_pol=pg.r_policies.fair_replace(0.1),
     )
 
     # log_interval = min(50, max(10, num_evolutions // 10))
