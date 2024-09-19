@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #SBATCH --job-name="trajectory"
 #SBATCH --partition=compute
@@ -31,7 +31,8 @@ perform_run() {
 presets=("neptune_1dsm_0" "neptune_1dsm_1" "neptune_1dsm_2" "neptune_1dsm_3" "neptune_1dsm_4")
 
 for preset in ${presets[@]}; do
-  srun --overlap perform_run $preset &
+  cmd="python $dir/wishlist.py --preset $preset --folder $preset -o && python $dir/main.py --folder $preset"
+  srun --overlap $cmd &
 done
 
 wait
