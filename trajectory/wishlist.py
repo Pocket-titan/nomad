@@ -280,7 +280,7 @@ def generate_suffix(x):
 def main(args):
     folder = FOLDER / args.folder
     if not folder.exists():
-        folder.mkdir()
+        folder.mkdir(parents=True, exist_ok=True)
 
     if args.dry:
         print("Dry run, not writing to file")
