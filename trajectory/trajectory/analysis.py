@@ -1,6 +1,7 @@
 # %%
 from pathlib import Path
 from tudatpy.astro.time_conversion import DateTime
+from tudatpy.interface import spice
 from astropy.time import Time, TimeDelta
 from tudatpy.util import result2array
 import matplotlib.gridspec as gridspec
@@ -13,10 +14,27 @@ import numpy as np
 
 from trajectory.lib.run import Run
 from trajectory.lib.utils import get_dates
+from wishlist import create_unpowered, create_1dsm
 
 sns.set_theme(style="ticks", palette="deep")
 
 FOLDER = Path(__file__).parents[1]
+kernels = FOLDER / "spice"
+
+spice.load_standard_kernels()
+spice.load_kernel(str((kernels / "nep097.bsp").absolute()))
+
+MU_SUN = spice.get_body_gravitational_parameter("Sun")
+MU_EARTH = spice.get_body_gravitational_parameter("Earth")
+MU_NEPTUNE = spice.get_body_gravitational_parameter("Neptune")
+R_EARTH = spice.get_average_radius("Earth")
+
+a_arr = 1.9203e9
+e_arr = 0.999999
+
+r_dep = 185e3 + R_EARTH
+a_dep = r_dep
+e_dep = 0.0
 
 
 def read_runs(folder):
@@ -83,12 +101,17 @@ def panel_plot(folder, title=None, c="gen"):
 
     runs = read_runs(folder)
 
-    order = [
-        # ["gaco", "mbh_gaco"],
-        # ["pso", "mbh_pso"],
-        # ["sade", "mbh_sade"],
-        ["sade"],
-    ]
+    order = np.array(
+        [
+            # ["gaco", "mbh_gaco"],
+            # ["pso", "mbh_pso"],
+            # ["sade", "mbh_sade"],
+            ["sade"],
+            ["gaco"],
+            ["mbh_gaco"],
+            ["pso"],
+        ]
+    )
 
     fig = plt.figure(figsize=(12, 10), layout="constrained")
     subfigs = fig.subfigures(nrows=1, ncols=2 + 1, width_ratios=[1, 1, 0.2])
@@ -102,17 +125,19 @@ def panel_plot(folder, title=None, c="gen"):
     axes0 = gs0.subplots(sharex=True, sharey=True)
     axes1 = gs1.subplots(sharex=True, sharey=True)
 
-    if not isinstance(axes0, np.ndarray):
-        axes0 = np.array([[axes0]])
-        axes1 = np.array([[axes1]])
+    axes0 = np.reshape(axes0, order.shape)
+    axes1 = np.reshape(axes1, order.shape)
 
     fig.suptitle(title)
     subfigs[0].suptitle("times")
     subfigs[1].suptitle("dv")
 
+    def _filter():
+        return (pl.col("dv") <= 15_000) & (pl.col("gen") > 10)
+
     minc, maxc = np.inf, 0
     for run in runs:
-        df = run.df.sort(pl.col("dv"))
+        df = run.df.filter(_filter()).sort(pl.col("dv")).head(10_000)
         minc = min(minc, df.select(pl.col(c)).min().collect().item() or minc)
         maxc = max(maxc, df.select(pl.col(c)).max().collect().item() or maxc)
     norm = plt.Normalize(vmin=minc / 1000, vmax=maxc / 1000)
@@ -121,14 +146,16 @@ def panel_plot(folder, title=None, c="gen"):
         algo = run.evolve_kwargs["algo_name"]
 
         try:
-            i, j = [(i, x.index(algo)) for i, x in enumerate(order) if algo in x][0]
+            i, j = [
+                (i, np.where(x == algo)[0][0]) for i, x in enumerate(order) if algo in x
+            ][0]
         except (IndexError, ValueError):
             continue
 
         axes0[i, j].set_title(algo)
         axes1[i, j].set_title(algo)
 
-        df = run.df.sort(pl.col("dv")).collect()
+        df = run.df.filter(_filter()).sort(pl.col("dv")).head(10_000).collect()
         times = get_dates(df["x"], run.p.number_of_legs)[..., [0, -1]]
 
         axes0[i, j].scatter(
@@ -194,52 +221,8 @@ def panel_plot(folder, title=None, c="gen"):
 # plot_best(FOLDER / "neptune_wide_unpowered")
 
 # %%
-panel_plot(FOLDER / "neptune_unpowered", c="dv")
-plot_best(FOLDER / "neptune_unpowered")
-
-
-# %%
-def create_unpowered(
-    *pars,
-    body_order=None,
-    departure_semi_major_axis=np.inf,
-    departure_eccentricity=0.0,
-    arrival_semi_major_axis=3.8913e9,
-    arrival_eccentricity=0.999486,
-    minimum_pericenters=None,
-):
-    from tudatpy.numerical_simulation.environment_setup import (
-        create_simplified_system_of_bodies,
-    )
-    from tudatpy.trajectory_design.transfer_trajectory import (
-        create_transfer_trajectory,
-        mga_settings_unpowered_unperturbed_legs,
-    )
-
-    central_body = "Sun"
-
-    bodies = create_simplified_system_of_bodies()
-
-    leg_settings, node_settings = mga_settings_unpowered_unperturbed_legs(
-        body_order,
-        departure_orbit=(departure_semi_major_axis, departure_eccentricity),
-        arrival_orbit=(arrival_semi_major_axis, arrival_eccentricity),
-        **(
-            dict(minimum_pericenters=minimum_pericenters)
-            if minimum_pericenters is not None
-            else {}
-        ),
-    )
-
-    obj = create_transfer_trajectory(
-        bodies,
-        leg_settings,
-        node_settings,
-        body_order,
-        central_body,
-    )
-
-    return obj, leg_settings, node_settings
+# panel_plot(FOLDER / "neptune_unpowered", c="dv")
+# plot_best(FOLDER / "neptune_unpowered")
 
 
 # %%
@@ -287,6 +270,11 @@ print(f"a = {a:.3e} m")
 print(f"soi = {soi:.3e} m")
 print(f"dv = {min(dvs):.0f} m/s")
 
+
+for run in runs:
+    pass
+
+
 # %%
 from tudatpy.interface import spice
 
@@ -324,8 +312,6 @@ plt.plot(states[:, 1], states[:, 2])
 plt.scatter([0], [0], label="Sun")
 plt.legend()
 
-# %%
-
 
 # %%
 def plot_orbit(obj, run):
@@ -353,3 +339,166 @@ plot_orbit(obj, run)
 obj.delta_v_per_node
 
 # %%
+from scipy.optimize import minimize
+
+runs = read_runs(FOLDER / "gen50")
+
+run = runs[0]
+
+
+def func(x, run, dv):
+    a, e = x
+
+    obj, _, _ = create_unpowered(
+        body_order=run.body_order,
+        departure_semi_major_axis=np.inf,
+        departure_eccentricity=0.0,
+        arrival_semi_major_axis=a,
+        arrival_eccentricity=e,
+    )
+    obj.evaluate(*run.p.convert_parameters(dv))
+    return obj.delta_v
+
+
+def mincapture(x, run):
+    # res = minimize(
+    #     func,
+    #     x0=[1e6, 0.9],
+    #     args=(run, x),
+    #     bounds=[(1e6, 1e12), (0.0, 0.999999)],
+    #     method="Nelder-Mead",
+    #     tol=1e-1,
+    # )
+
+    # if not res.success:
+    #     raise Exception()
+
+    # dv = res.fun
+    # a, e = res.x
+
+    a = 1.9203e9
+    e = 0.999999
+    dv = func([a, e], run, x)
+
+    return dict(a=a, e=e, dv_min=dv)
+
+
+df = run.df
+dv = df.sort("dv").first().collect()["x"].item().to_numpy()
+
+res = (
+    df.with_columns(((pl.col("dv") / 100).round(0) * 100).alias("round_dv"))
+    .group_by("round_dv")
+    .agg(pl.all().first())
+    .select(pl.exclude("round_dv"))
+    .collect()
+)
+
+res = res.with_columns(
+    pl.col("x").map_elements(lambda x: mincapture(x, run)).alias("capture")
+).unnest("capture")
+
+# %%
+runs = read_runs(FOLDER / "neptune_1dsm")
+
+panel_plot(FOLDER / "neptune_1dsm", c="dv")
+# plot_best(FOLDER / "neptune_1dsm")
+# %%
+from tqdm import tqdm
+
+# %%
+runs = read_runs(FOLDER / "neptune_1dsm")
+
+dfs = []
+
+for run in tqdm(runs):
+    df = run.df.collect()
+    times = get_dates(df["x"], run.p.number_of_legs)[..., [0, -1]]
+    df = df.with_columns(departure=pl.lit(times[:, 0]), arrival=pl.lit(times[:, 1]))
+
+    dsm_leg_index = int(run.name.split("_1dsm_")[1].split("_")[0])
+
+    obj, _, _ = create_1dsm(
+        body_order=run.body_order,
+        departure_semi_major_axis=a_dep,
+        departure_eccentricity=e_dep,
+        arrival_semi_major_axis=a_arr,
+        arrival_eccentricity=e_arr,
+        dsm_leg_index=dsm_leg_index,
+    )
+
+    dvs = []
+    for x in df["x"]:
+        try:
+            obj.evaluate(*run.p.convert_parameters(x.to_numpy()))
+            dv = sum(obj.delta_v_per_leg) + sum(obj.delta_v_per_node[:-1])
+        except Exception:
+            dv = np.nan
+        dvs.append(dv)
+
+    dfs.append(
+        df.with_columns(
+            x=df["x"].cast(pl.List(pl.Float64)),
+            traj_dv=pl.Series(dvs),
+            kind=pl.lit("1dsm"),
+            algo=pl.lit(run.evolve_kwargs["algo_name"]),
+            dsm_leg_index=pl.lit(dsm_leg_index),
+            body_order=pl.lit("".join([x[0].upper() for x in run.body_order])),
+            run_name=pl.lit(run.name),
+        )
+    )
+
+df = pl.concat(dfs, how="vertical")
+# %%
+df.write_parquet(str((FOLDER / "trajectories_1dsm.parquet").absolute()))
+
+# %%
+df.to_pandas().to_parquet(FOLDER / "trajectories_1dsm_2.parquet", compression="lz4")
+
+# %%
+dfs = []
+
+runs = read_runs(FOLDER / "neptune_unpowered")
+
+for run in tqdm(runs):
+    df = run.df.collect()
+    times = get_dates(df["x"], run.p.number_of_legs)[..., [0, -1]]
+    df = df.with_columns(departure=pl.lit(times[:, 0]), arrival=pl.lit(times[:, 1]))
+
+    obj, _, _ = create_unpowered(
+        body_order=run.body_order,
+        departure_semi_major_axis=a_dep,
+        departure_eccentricity=e_dep,
+        arrival_semi_major_axis=a_arr,
+        arrival_eccentricity=e_arr,
+    )
+
+    dvs = []
+    for x in df["x"]:
+        try:
+            obj.evaluate(*run.p.convert_parameters(x.to_numpy()))
+            dv = sum(obj.delta_v_per_leg) + sum(obj.delta_v_per_node[:-1])
+        except Exception:
+            dv = np.nan
+        dvs.append(dv)
+
+    dfs.append(
+        df.with_columns(
+            x=df["x"].cast(pl.List(pl.Float64)),
+            traj_dv=pl.Series(dvs),
+            kind=pl.lit("unpowered"),
+            algo=pl.lit(run.evolve_kwargs["algo_name"]),
+            dsm_leg_index=pl.lit(None),
+            body_order=pl.lit("".join([x[0].upper() for x in run.body_order])),
+            run_name=pl.lit(run.name),
+        )
+    )
+
+
+df = pl.concat(dfs, how="vertical")
+# %%
+
+df.to_pandas().to_parquet(FOLDER / "trajectories_unpowered_2.parquet", compression="lz4")
+
+# %%
+df.write_parquet(FOLDER / "trajectories_unpowered.parquet")

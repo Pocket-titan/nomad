@@ -3,6 +3,8 @@
   "python.analysis.extraPaths": ["${workspaceFolder}/trajectory"],
   "python.autoComplete.extraPaths": ["${workspaceFolder}/trajectory"],
   "jupyter.notebookFileRoot": "${workspaceFolder}/trajectory",
+  "ruff.lint.args": ["--line-length", "140"],
+  "ruff.format.args": ["--line-length", "110"],
   "python.analysis.exclude": ["**/stubs/**"],
   "files.exclude": {
     "**/stubs": true

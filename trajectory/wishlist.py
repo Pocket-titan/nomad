@@ -708,6 +708,8 @@ neptune_unpowered = [
 neptune_1dsm_body_orders = [
     ["Earth", "Neptune"],
     ["Earth", "Jupiter", "Neptune"],
+    # ["Earth", "Mars", "Jupiter", "Neptune"],
+    # ["Earth", "Venus", "Earth", "Earth", "Jupiter", "Neptune"],
 ]
 
 neptune_1dsm = [
@@ -753,14 +755,21 @@ neptune_1dsm = [
                 )
             )
         ],
-        [dict(extra=dict(dsm_leg_index=0)), dict(extra=dict(dsm_leg_index=1))],
+        [
+            dict(extra=dict(dsm_leg_index=0)),
+            dict(extra=dict(dsm_leg_index=1)),
+            dict(extra=dict(dsm_leg_index=2)),
+            dict(extra=dict(dsm_leg_index=3)),
+        ],
     )
 ]
 
 
 def filter_1dsm(x):
     if "extra" in x and "dsm_leg_index" in x["extra"]:
-        if x["extra"]["dsm_leg_index"] == 1 and len(x["body_order"]) == 2:
+        num_legs = len(x["body_order"]) - 1
+
+        if x["extra"]["dsm_leg_index"] >= num_legs:
             return False
 
     return True

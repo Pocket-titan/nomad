@@ -24,7 +24,7 @@ conda activate tudat-space
 presets=("neptune_1dsm_0" "neptune_1dsm_1" "neptune_1dsm_2" "neptune_1dsm_3" "neptune_1dsm_4")
 
 for preset in ${presets[@]}; do
-  srun -n1 --cpus-per-task $SLURM_CPUS_PER_TASK --exclusive $dir/run.sh $preset &
+  srun -N1 -n1 --cpus-per-task $SLURM_CPUS_PER_TASK --exclusive $dir/run.sh $preset &
 done
 
 wait
