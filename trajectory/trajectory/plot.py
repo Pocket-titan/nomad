@@ -1,26 +1,28 @@
 # %%
+from datetime import timedelta
 from pathlib import Path
+
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+import matplotlib.gridspec as gridspec
+import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
+import polars as pl
+import seaborn as sns
+from astropy.time import Time, TimeDelta
+from sklearn.cluster import DBSCAN
+from sklearn.metrics import pairwise_distances
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from tudatpy import constants
 from tudatpy.astro.time_conversion import DateTime
 from tudatpy.interface import spice
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.metrics import pairwise_distances
-from sklearn.cluster import DBSCAN
-from tudatpy import constants
-from astropy.time import Time, TimeDelta
 from tudatpy.util import result2array
-import matplotlib.lines as mlines
-import matplotlib.gridspec as gridspec
-import matplotlib.ticker as ticker
-import matplotlib.colors as colors
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import seaborn as sns
-import polars as pl
-import numpy as np
 
 from trajectory.lib.run import Run
 from trajectory.lib.utils import get_dates
-from wishlist import create_unpowered, create_1dsm
+from wishlist import create_1dsm, create_unpowered
 
 sns.set_theme(
     style="ticks",
@@ -38,12 +40,19 @@ sns.set_theme(
 deep = sns.color_palette("deep")
 set2 = sns.color_palette("Set2")
 
-pal1 = sns.cubehelix_palette(start=0.4, gamma=0.6, hue=1.2, rot=-0.75, light=0.6, dark=0.4, as_cmap=True)
-pal2 = sns.cubehelix_palette(start=0.6, gamma=0.7, hue=1.2, rot=-0.75, light=0.5, dark=0.27, as_cmap=True)
-pal3 = sns.cubehelix_palette(start=0.8, gamma=0.75, hue=1.2, rot=-0.75, light=0.4, dark=0.18, as_cmap=True)
+pal1 = sns.cubehelix_palette(
+    start=0.4, gamma=0.6, hue=1.2, rot=-0.75, light=0.6, dark=0.4, as_cmap=True
+)
+pal2 = sns.cubehelix_palette(
+    start=0.6, gamma=0.7, hue=1.2, rot=-0.75, light=0.5, dark=0.27, as_cmap=True
+)
+pal3 = sns.cubehelix_palette(
+    start=0.8, gamma=0.75, hue=1.2, rot=-0.75, light=0.4, dark=0.18, as_cmap=True
+)
 
 aurora = colors.LinearSegmentedColormap.from_list(
-    "aurora", [*zip([0, 0.33, 0.66, 1], [pal1(0), pal1(pal1.N), pal2(pal2.N), pal3(pal3.N)])]
+    "aurora",
+    [*zip([0, 0.33, 0.66, 1], [pal1(0), pal1(pal1.N), pal2(pal2.N), pal3(pal3.N)])],
 )
 
 kernels = Path(__file__).parents[1] / "spice"
@@ -174,7 +183,9 @@ fig, ax = plt.subplots(figsize=(8, 4), layout="constrained", dpi=300)
 cmap = aurora.reversed()
 
 
-for i, (name, data) in enumerate(df.group_by(["round_tof", "marker"], maintain_order=True)):
+for i, (name, data) in enumerate(
+    df.group_by(["round_tof", "marker"], maintain_order=True)
+):
     x = data.sort("tof", descending=True)
 
     ax.scatter(
@@ -257,7 +268,9 @@ cmap = aurora.reversed()
 norm = plt.Normalize(res["traj_dv"].min() / 1000, res["traj_dv"].max() / 1000)
 
 
-for i, (name, data) in enumerate(res.group_by(["round_traj_dv", "marker"], maintain_order=True)):
+for i, (name, data) in enumerate(
+    res.group_by(["round_traj_dv", "marker"], maintain_order=True)
+):
     x = data.sort("traj_dv", descending=True)
 
     ax.scatter(
@@ -311,7 +324,9 @@ res2 = (
         [
             pl.col("traj_dv").round_sig_figs(2).alias("r_traj_dv"),
             pl.col("tof").round_sig_figs(2).alias("r_tof"),
-            (pl.col("traj_dv") / df["traj_dv"].min() + pl.col("tof") / df["tof"].min()).alias("ratio"),
+            (
+                pl.col("traj_dv") / df["traj_dv"].min() + pl.col("tof") / df["tof"].min()
+            ).alias("ratio"),
             pl.col("departure").dt.round(every="14d").alias("r_departure"),
             pl.col("arrival").dt.round(every="14d").alias("r_arrival"),
         ]
@@ -327,7 +342,11 @@ res2 = (
         ]
     )
     .agg(pl.all().sort_by("ratio").head(1))
-    .explode(pl.exclude(["r_traj_dv", "r_tof", "body_order", "kind", "r_departure", "r_arrival"]))
+    .explode(
+        pl.exclude(
+            ["r_traj_dv", "r_tof", "body_order", "kind", "r_departure", "r_arrival"]
+        )
+    )
 ).drop(["r_traj_dv", "r_tof", "r_departure", "r_arrival"])
 
 
@@ -362,7 +381,9 @@ for name, data in res2.group_by(["marker", "kind"]):
             singles = pts[(db.labels_ == label) & ~cluster_mask]
             x, y = singles.T
             size = 1
-            cluster_data.extend(zip(x, y, [marker] * len(x), [kind] * len(x), [size] * len(x)))
+            cluster_data.extend(
+                zip(x, y, [marker] * len(x), [kind] * len(x), [size] * len(x))
+            )
         else:
             clusters = pts[(db.labels_ == label) & cluster_mask]
             x, y = clusters.mean(axis=0)
@@ -371,7 +392,9 @@ for name, data in res2.group_by(["marker", "kind"]):
 
 
 cluster_df = (
-    pl.DataFrame(cluster_data, schema=["tof", "traj_dv", "marker", "kind", "size"], orient="row")
+    pl.DataFrame(
+        cluster_data, schema=["tof", "traj_dv", "marker", "kind", "size"], orient="row"
+    )
     .with_columns(
         [
             pl.col("traj_dv").round_sig_figs(2).alias("r_traj_dv"),
@@ -385,7 +408,9 @@ cluster_df = (
     .drop(["r_traj_dv", "r_tof"])
 )
 
-print(f"Went from {res2.shape[0]} pts to {len(cluster_data)} clusters. Max size: {max(cluster_df['size'])}")
+print(
+    f"Went from {res2.shape[0]} pts to {len(cluster_data)} clusters. Max size: {max(cluster_df['size'])}"
+)
 
 # End cluster
 
@@ -394,7 +419,9 @@ fig, ax = plt.subplots(figsize=(7, 4), layout="constrained", dpi=300)
 cmap = aurora.reversed()
 
 
-for i, (name, data) in enumerate(cluster_df.group_by(["marker", "kind"], maintain_order=True)):
+for i, (name, data) in enumerate(
+    cluster_df.group_by(["marker", "kind"], maintain_order=True)
+):
     x = data.sort(["traj_dv", "tof"], descending=True)
 
     ax.scatter(
@@ -458,7 +485,9 @@ res3 = (
 )
 
 
-fig, axes = plt.subplots(nrows=2, sharex=True, figsize=(6.5, 3 * 2), layout="constrained", dpi=300)
+fig, axes = plt.subplots(
+    nrows=2, sharex=True, figsize=(6.5, 3 * 2), layout="constrained", dpi=300
+)
 cmap = aurora.reversed()
 tof_norm = plt.Normalize(res3["tof"].min(), res3["tof"].max())
 dv_norm = plt.Normalize(res3["traj_dv"].min() / 1000, res3["traj_dv"].max() / 1000)
@@ -494,9 +523,13 @@ for name, data in res3.group_by("marker"):
         zorder=5,
     )
 
-axes[0].plot(res3["departure"], res3["arrival"], color=cmap(cmap.N // 4), alpha=0.5, lw=1.5)
+axes[0].plot(
+    res3["departure"], res3["arrival"], color=cmap(cmap.N // 4), alpha=0.5, lw=1.5
+)
 
-axes[1].plot(res3["departure"], res3["traj_dv"] / 1000, color=cmap(cmap.N // 4), alpha=0.5, lw=1.5)
+axes[1].plot(
+    res3["departure"], res3["traj_dv"] / 1000, color=cmap(cmap.N // 4), alpha=0.5, lw=1.5
+)
 
 axes[0].set_ylabel("Arrival year")
 axes[1].set_ylabel(r"$\Delta$v [km/s]")
@@ -510,7 +543,13 @@ axes[1].annotate(
     xy=(0.043, 0.05),
     xytext=(0.065, 0.6),
     arrowprops=dict(
-        facecolor=((0.25,) * 3), shrink=0.05, width=1.5, headwidth=7, headlength=7, edgecolor="none", alpha=1
+        facecolor=((0.25,) * 3),
+        shrink=0.05,
+        width=1.5,
+        headwidth=7,
+        headlength=7,
+        edgecolor="none",
+        alpha=1,
     ),
     xycoords="axes fraction",
     textcoords="axes fraction",
@@ -524,7 +563,13 @@ axes[1].annotate(
     xy=(0.105, 0.1),
     xytext=(0.065, 0.6),
     arrowprops=dict(
-        facecolor=((0.25,) * 3), shrink=0.05, width=1.5, headwidth=7, headlength=7, edgecolor="none", alpha=1
+        facecolor=((0.25,) * 3),
+        shrink=0.05,
+        width=1.5,
+        headwidth=7,
+        headlength=7,
+        edgecolor="none",
+        alpha=1,
     ),
     xycoords="axes fraction",
     textcoords="axes fraction",
@@ -551,7 +596,13 @@ axes[1].annotate(
     xy=(0.59, 0.075),
     xytext=(0.6, 0.5),
     arrowprops=dict(
-        facecolor=((0.25,) * 3), shrink=0.05, width=1.5, headwidth=7, headlength=7, edgecolor="none", alpha=1
+        facecolor=((0.25,) * 3),
+        shrink=0.05,
+        width=1.5,
+        headwidth=7,
+        headlength=7,
+        edgecolor="none",
+        alpha=1,
     ),
     xycoords="axes fraction",
     textcoords="axes fraction",
@@ -564,7 +615,13 @@ axes[1].annotate(
     xy=(0.65, 0.075),
     xytext=(0.6, 0.5),
     arrowprops=dict(
-        facecolor=((0.25,) * 3), shrink=0.05, width=1.5, headwidth=7, headlength=7, edgecolor="none", alpha=1
+        facecolor=((0.25,) * 3),
+        shrink=0.05,
+        width=1.5,
+        headwidth=7,
+        headlength=7,
+        edgecolor="none",
+        alpha=1,
     ),
     xycoords="axes fraction",
     textcoords="axes fraction",
@@ -584,8 +641,12 @@ axes[1].text(
     transform=axes[1].transAxes,
 )
 
-plt.colorbar(cm.ScalarMappable(norm=dv_norm, cmap=cmap), label=r"$\Delta$v [km/s]", ax=axes[0])
-plt.colorbar(cm.ScalarMappable(norm=tof_norm, cmap=cmap), label="time of flight [yr]", ax=axes[1])
+plt.colorbar(
+    cm.ScalarMappable(norm=dv_norm, cmap=cmap), label=r"$\Delta$v [km/s]", ax=axes[0]
+)
+plt.colorbar(
+    cm.ScalarMappable(norm=tof_norm, cmap=cmap), label="time of flight [yr]", ax=axes[1]
+)
 
 handles = []
 for name, marker in [("EJN", "o"), ("EN", "^")]:
@@ -669,20 +730,43 @@ colors = {
 }
 
 plt.plot(states[:-44, 1], states[:-44, 2], lw=1.25, zorder=4)
-plt.scatter([0], [0], c=colors["Sun"], s=25, marker="o", edgecolors="black", linewidths=0.5)
+plt.scatter(
+    [0], [0], c=colors["Sun"], s=25, marker="o", edgecolors="black", linewidths=0.5
+)
+
+leg_times = np.diff(node_times)
+
+burn_leg_index = champion["dsm_leg_index"].to_numpy()[0]
+burn_time_fraction = leg_parameters[burn_leg_index][0]
+burn_duration = leg_times[burn_leg_index] * burn_time_fraction
+burn_time = node_times[burn_leg_index] + burn_duration
+
+burn_time_index = (np.abs(state_keys - [[burn_time]])).argmin(axis=1).item()
+burn_state = state_history[state_keys[burn_time_index]]
+
+node_dates = get_dates(x, run.p.number_of_legs)
+burn_date = node_dates[burn_leg_index] + timedelta(seconds=burn_duration)
 
 body_state_histories = []
 body_states = []
 
 for body in bodies:
     body_state_history = {
-        epoch: spice.get_body_cartesian_position_at_epoch(body, "Sun", "J2000", "NONE", epoch)
+        epoch: spice.get_body_cartesian_position_at_epoch(
+            body, "Sun", "J2000", "NONE", epoch
+        )
         for epoch in state_keys
     }
 
     body_state_histories.append(body_state_history)
     body_states.append(result2array(body_state_history))
 
+arrowprops = dict(
+    arrowstyle="->",
+    lw=1.25,
+    color="black",
+    connectionstyle="arc3,rad=-0.2",
+)
 
 for i, body in enumerate(bodies):
     body_state_history = body_state_histories[i]
@@ -701,6 +785,19 @@ for i, body in enumerate(bodies):
             zorder=7,
         )
 
+        ax.annotate(
+            f"Earth departure\n{node_dates[0].strftime('%d %b %Y')}",
+            xy=(pos1[0] - 2e10, pos1[1] + 2e10),
+            xytext=(pos1[0] + 2e11, pos1[1] + 2e12),
+            textcoords="data",
+            arrowprops=arrowprops,
+            fontsize=8,
+            ha="center",
+            va="center",
+            color="black",
+            zorder=9,
+        )
+
     if body == "Jupiter":
         pos1 = body_state_history[state_keys[420]]
         plt.scatter(
@@ -712,6 +809,19 @@ for i, body in enumerate(bodies):
             edgecolors="black",
             linewidths=0.5,
             zorder=7,
+        )
+
+        ax.annotate(
+            f"Jupiter gravity assist\n{node_dates[1].strftime('%d %b %Y')}",
+            xy=(pos1[0] + 5e10, pos1[1] - 5e10),
+            xytext=(pos1[0] + 2.5e12, pos1[1] + 4e11),
+            textcoords="data",
+            arrowprops=arrowprops,
+            fontsize=8,
+            ha="center",
+            va="center",
+            color="black",
+            zorder=9,
         )
 
     if body == "Neptune":
@@ -727,6 +837,19 @@ for i, body in enumerate(bodies):
             zorder=7,
         )
 
+        ax.annotate(
+            f"Neptune arrival\n{node_dates[-1].strftime('%d %b %Y')}",
+            xy=(pos1[0] - 5e10, pos1[1] + 2e10),
+            xytext=(pos1[0] - 1.5e12, pos1[1] + 2e10),
+            textcoords="data",
+            arrowprops=arrowprops,
+            fontsize=8,
+            ha="center",
+            va="center",
+            color="black",
+            zorder=9,
+        )
+
     lims = {"Earth": 200, "Jupiter": 800, "Neptune": -1}
     plt.plot(
         body_state[: lims[body], 1],
@@ -737,14 +860,42 @@ for i, body in enumerate(bodies):
         alpha=0.8,
     )
 
+ax.scatter(
+    burn_state[0],
+    burn_state[1],
+    s=40,
+    marker="^",
+    c="#e15759",
+    edgecolors="black",
+    linewidths=0.5,
+    zorder=8,
+)
+
+burn_dv = obj.delta_v_per_leg[burn_leg_index]
+
+ax.annotate(
+    f"DSM\n$\\Delta$V={burn_dv:.2f} m/s\n{burn_date.strftime('%d %b %Y')}",
+    xy=(burn_state[0] - 2e10, burn_state[1] + 2e10),
+    xytext=(burn_state[0] - 1e12, burn_state[1] + 1.25e12),
+    textcoords="data",
+    arrowprops={
+        **arrowprops,
+        "connectionstyle": "arc3,rad=0.2",
+    },
+    fontsize=8,
+    ha="center",
+    va="center",
+    color="black",
+    zorder=9,
+)
 
 plt.yticks(ticks=plt.yticks()[0], labels=[])
 plt.xticks(ticks=plt.xticks()[0], labels=[])
 plt.gca().set_aspect("equal")
 plt.legend(fontsize=8, loc="upper left")
 
-# plt.savefig("champion_trajectory.png", bbox_inches="tight", dpi=300)
-# plt.savefig("champion_trajectory.pdf", bbox_inches="tight", dpi=300)
+plt.savefig("champion_trajectory_v3.png", bbox_inches="tight", dpi=300)
+plt.savefig("champion_trajectory_v3.pdf", bbox_inches="tight", dpi=300)
 
 # %%
 get_dates(x, run.p.number_of_legs)
